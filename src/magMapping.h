@@ -51,7 +51,8 @@ typedef struct threadParameterMagMapping threadParamMag;
 class MagMapping{
 public:
 
-	bool sinLatFormat;	/*!< \brief azimuthal spacing linear in latitude (false) or sine(latitude) (true) 	*/
+	bool sinLatFormat;	/*!< \brief azimuthal spacing linear in latitude (false, TODO not working) or sine(latitude) (true) 	*/
+	hcFloat maxSinLat;	/*!< \brief sinLat-Boundary in case of sinLatFormat==true							*/
 	bool compCoords;	/*!< \brief height level in computationalCoords										*/
     uint numTheta;		/*!< \brief number of "pixels" in meridional direction								*/
 	uint numPhi;		/*!< \brief number of "pixels" in zonal direction									*/
@@ -60,6 +61,7 @@ public:
     MagMapping(const MagMapping &other);			/*!< \brief cpy constructor								*/
     MagMapping(bool sinLatFormat,
     		   bool compCoords,
+    		   hcFloat maxSinLat,
     		   uint numTheta,
     		   uint numPhi,
     		   hcFloat height);						/*!< \brief constructor									*/
@@ -70,6 +72,7 @@ public:
 
     void init(bool sinLatFormat,
     		  bool compCoords,
+    		  hcFloat maxSinLat,
     		  uint numTheta,
     		  uint numPhi,
     		  hcFloat height);						/*!< \brief initializer									*/
@@ -128,7 +131,7 @@ public:
     	/*!< \brief exports the curvature of the magnetic field lines at height	(TODO not working)			*/
 
     bool exportMultiCurvature(const char *filename, hcFloat height, hcFloat *heights, uint numHeights, hcFloat lowerR, hcFloat sourceSurfaceR);
-		/*!< \brief exports the curvature of the magnetic field lines at height								*/
+		/*!< \brief exports the curvature of the magnetic field lines at height	(TODO not working)			*/
 
     void dump();
 
@@ -137,13 +140,14 @@ public:
 #endif
 private:
 
-    Vec2D *coords;      /*!< \brief theta / phi coordinates of pixel                                    						*/
-    hcFloat height;     /*!< \brief height position of map                                              						*/
+    Vec2D *coords;      /*!< \brief theta / phi coordinates of pixel                                    	*/
+    hcFloat height;     /*!< \brief height position of map                                              	*/
 
     void initNULL();
     void clear();
 
     uint index(uint indTheta, uint indPhi);
+    	/*!< \brief returns the 1D index for access to the arrays coords and maglines						*/
 };
 
 #endif // MAGMAPPING_H

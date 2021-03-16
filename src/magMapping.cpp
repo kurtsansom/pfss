@@ -99,7 +99,7 @@ bool convertMagMap2bmp(const char *filename)
 #ifdef GUI
 void drawEcliptic(hcImageRGBA &img, hcFloat maxSinLat, bool sinLatFormat, uint crNum)
 {
-	uint color						= char2RGBA8(0, 0, 0, 255);
+	//uint color						= char2RGBA8(0, 0, 0, 255);
 	uint cr							= 0;
 	uint cg							= 0;
 	uint cb							= 0;
@@ -153,10 +153,10 @@ MagMapping::MagMapping(const MagMapping &other)
     *this = other;
 }
 
-MagMapping::MagMapping(bool sinLatFormat, bool compCoords, uint numTheta, uint numPhi, hcFloat height)
+MagMapping::MagMapping(bool sinLatFormat, bool compCoords, hcFloat maxSinLat, uint numTheta, uint numPhi, hcFloat height)
 {
     initNULL();
-    init(sinLatFormat, compCoords, numTheta, numPhi, height);
+    init(sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
 }
 
 MagMapping::~MagMapping()
@@ -170,7 +170,7 @@ MagMapping &MagMapping::operator=(const MagMapping &other)
         return *this;
 
     clear();
-    init(other.sinLatFormat, other.compCoords, other.numTheta, other.numPhi, other.getHeight());
+    init(other.sinLatFormat, other.compCoords, other.maxSinLat, other.numTheta, other.numPhi, other.getHeight());
 
     for(uint j=0; j<numTheta; ++j)
         for(uint k=0; k<numPhi; ++k)
@@ -222,11 +222,14 @@ void MagMapping::clear()
     initNULL();
 }
 
-void MagMapping::init(bool sinLatFormat, bool compCoords, uint numTheta, uint numPhi, hcFloat height)
+void MagMapping::init(bool sinLatFormat, bool compCoords, hcFloat maxSinLat, uint numTheta, uint numPhi, hcFloat height)
 {
     clear();
 
     this->sinLatFormat	= sinLatFormat;
+    this->maxSinLat		= maxSinLat;
+    //this->dLat			= ?				// TODO: non sine-latitude?
+    hcFloat dLat		= 0.0;
     this->numTheta  	= numTheta;
     this->numPhi    	= numPhi;
     this->height		= height;
@@ -235,9 +238,16 @@ void MagMapping::init(bool sinLatFormat, bool compCoords, uint numTheta, uint nu
     maglines    		= new Magline*[numTheta * numPhi];
     coords      		= new Vec2D[   numTheta * numPhi];
 
+    hcFloat dSinLat		= 2*maxSinLat/(numTheta-1);
+
     for(uint j=0; j<numTheta; ++j)
         for(uint k=0; k<numPhi; ++k)
-            maglines[index(j,k)] = new Magline();
+        {
+        	hcFloat theta		= sinLatFormat ? PI/2 - asin(maxSinLat - j * dSinLat) : PI/2-asin(maxSinLat) + j*dLat;
+			hcFloat phi         = k * 2 * PI / numPhi;
+			coords[index(j, k)] = Vec2D(theta, phi);	// TODO this only accounts for computational coordinates, for elliptical world coordinates see the createMagmapping function
+            maglines[index(j,k)]= new Magline();
+        }
 }
 
 uint MagMapping::index(uint indTheta, uint indPhi)
@@ -260,6 +270,7 @@ hcFloat MagMapping::getHeight() const
 	return height;
 }
 
+// TODO sizeof(hcFloat) needs to be stored, sinlatformat, dlat, maxsinlat, need to be stored
 bool MagMapping::exportBinary(const char *filename)
 {
     if(!createFolderStructureTo(filename) || boost::filesystem::is_directory(filename))
@@ -312,13 +323,13 @@ bool MagMapping::importBinary(const string &filename)
     std::ifstream file;
     file.open(filename, std::ios::out | std::ios::binary);
 
-    file.read(reinterpret_cast<char*>(&sinLatFormat),	sizeof(bool));
+    file.read(reinterpret_cast<char*>(&sinLatFormat),	sizeof(bool));	// TODO: combine with maxsinlat to replace the need to store coords, see below
     file.read(reinterpret_cast<char*>(&compCoords),		sizeof(bool));
     file.read(reinterpret_cast<char*>(&numTheta),		sizeof(uint));
     file.read(reinterpret_cast<char*>(&numPhi),			sizeof(uint));
     file.read(reinterpret_cast<char*>(&height),         sizeof(hcFloat));
 
-    init(sinLatFormat, compCoords, numTheta, numPhi, height);
+    init(sinLatFormat, compCoords, 0.0, numTheta, numPhi, height);		// TODO: coords should not need to be stored, but maxsinlat should be
 
 
     for(uint i=0; i<numTheta*numPhi; ++i)
@@ -339,6 +350,23 @@ bool MagMapping::importBinary(const string &filename)
             delete [] array;
         }
     file.close();
+
+    Vec2D coord_0	= coords[index(0,0)];
+    Vec2D coord_1	= coords[index(1,0)];
+    Vec2D coord_2	= coords[index(2,0)];
+
+    hcFloat theta_0		= coord_0[0];
+    hcFloat theta_1		= coord_1[0];
+    hcFloat theta_2		= coord_2[0];
+
+    hcFloat maxSinLat	= sin(PI/2.0 - theta_0);
+    hcFloat dt_0		= theta_1 - theta_0;
+    hcFloat dt_1		= theta_2 - theta_1;
+
+    this->maxSinLat 	= maxSinLat;
+    this->sinLatFormat	= fabs(dt_0-dt_1) > 1E-3;
+
+    //cout << theta_0 << " " << theta_1 << " " << theta_2 << " " << maxSinLat << " " << sinLatFormat << "\n";
 
     return true;
 }
@@ -391,9 +419,6 @@ hcFloat MagMapping::diffFootpoints(MagMapping &other)
 			hcFloat dp		= min(fabs(p0-p1), fabs(p0-p1-2*PI));
 
 			hcFloat dist 	= dt*dt + dp*dp;
-
-			//cout << t0 << "\t" << p0 << "\n";
-			//cout << t1 << "\t" << p1 << "\n\n";
 
 			retval += dist;
 		}
@@ -531,7 +556,7 @@ bool MagMapping::createAtHeight_SP(LaplaceSolver &solver, hcFloat height, uint n
 	hcFloat dSinLat = 2*maxSinLat		/ (numTheta - 1);
 	hcFloat dLat	= 2*asin(maxSinLat)	/ (numTheta - 1);
 
-    init(sinLatFormat, compCoords, numTheta, numPhi, height);
+    init(sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
 
     printf("MagMapping::createAtHeight: Starting single-thread version\n");
 
@@ -547,9 +572,9 @@ bool MagMapping::createAtHeight_SP(LaplaceSolver &solver, hcFloat height, uint n
             Vec3D pos			= Vec3D(height, theta, phi);
             Vec3D posSpher		= solver.grid->isElliptical() ? pos.convCoordSpher2Ell(*(dynamic_cast<EllipticalGrid*>(solver.grid))) : pos;
             Vec3D posComp		= compCoords ? pos : posSpher;
+            coords[index(j, k)] = Vec2D(posComp[1], posComp[2]);
 
             magline.createMaglineThroughPos(*solver.grid, posComp, false);
-            coords[index(j, k)] = Vec2D(posComp[1], posComp[2]);
 
             if(!magline.valid)
             	printf("MagMapping::createAtHeight_SP j/k: %u/%u invalid\n", j, k);
@@ -564,7 +589,7 @@ bool MagMapping::createAtHeight_SP(LaplaceSolver &solver, hcFloat height, uint n
 bool MagMapping::createAtHeight_MP(LaplaceSolver &solver, hcFloat height, uint numTheta, uint numPhi,
                                 hcFloat maxSinLat, bool sinLatFormat, bool compCoords)
 {
-	init(sinLatFormat, compCoords, numTheta, numPhi, height);
+	init(sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
 
 	uint numMaglines				= numTheta * numPhi;
 	bool *workedUpon 				= new bool[numMaglines];
@@ -802,7 +827,7 @@ bool MagMapping::exportImage(string filename)
 			uint xi			= k;
 			uint yi			= numTheta - j - 1;
 			Magline &magL   = *maglines[index(j, k)];                       // magline considered
-			Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
+			//Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
 
 			if(!magL.valid)				img(xi, yi) = Magline::colorInvalid;
 			else
@@ -848,11 +873,11 @@ bool MagMapping::exportFootpointImage(string filename)
 		for(uint k=0; k<numPhi; ++k)
 		{
 			Magline &magL   = *maglines[index(j, k)];                       // magline considered
-			Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
+			//Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
 			Vec2D foot		= Vec2D(magL.posdata[0][1], magL.posdata[0][2]);// footpoint on photosphere (one of them if magline closed)
 			int x			= (uint)round(foot[1]*tfX);						// img position of footpoint
 			//int y			= numTheta - 1 - (int)round((sin(PI/2.0-foot[0])-minSinLat)*tfY);
-			int y			= (int)round((sin(PI/2.0-foot[0])-minSinLat)*tfY);
+			uint y			= (uint)round((sin(PI/2.0-foot[0])-minSinLat)*tfY);
 
 			if(magL.valid && y>=0 && y<numTheta)
 			{
@@ -931,7 +956,7 @@ bool MagMapping::exportASCII(string filename, hcFloat *heights, uint numHeights,
                     else
                     {
                     	sprintf(tempstr, "/ %u ", numPos);
-                    	char tstr[20];
+                    	char tstr[30];
                     	for(int l=0; l<numPos; ++l)
                     	{
                     		sprintf(tstr, "; %E %E ", pos[l][1], pos[l][2]);
@@ -1112,7 +1137,7 @@ bool MagMapping::exportMultiCurvature(
 			Magline &magL   = *maglines[index(j, k)];                       // magline considered
 			Vec2D &coord    = coords[index(j, k)];
 			uint indL       = 0;
-			uint indU       = magL.numSamples - 1;
+			//uint indU       = magL.numSamples - 1;
 
 			outputstring[0] = '\0';
 			sprintf(outputstring, "%E %E ", coord[0], coord[1]);
@@ -1181,6 +1206,15 @@ bool MagMapping::exportMultiCurvature(
 
 bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &fn_fits, const string &fn_bitmap)
 {
+	hcFloat dSinLat		= 2*maxSinLat 		/ (numTheta - 1);
+	//hcFloat dLat		= 2*asin(maxSinLat)	/ (numTheta - 1);
+	hcFloat dLong		= 2 * PI / numPhi * 360/ 2.0 / PI;
+	hcFloat crpix1		= (numPhi) / 2.0;
+	hcFloat crpix2		= (numTheta+1) / 2.0;
+	hcFloat crval1		= 180;
+	hcFloat crval2		= 0;
+	//hcFloat nullval		= 0.0;
+
 	hcImageFITS expansion(numPhi, numTheta);
 
 	if(grid->isElliptical())
@@ -1205,7 +1239,6 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 			hcFloat bu		= magl.magdata[magl.numSamples-1].length();
 			hcFloat factor 	= bl * rl * rl / (bu * ru * ru);
 			expansion(k, numTheta - j - 1)	= factor;
-			//cout << j << "/" << k << " ru: " << ru << "\n";
 		}
 
 	hcFloat valMax	= 10000;
@@ -1228,6 +1261,24 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 
 	retval &= expansion.save(fn_fits.data());
 	retval &= bitmap.save(fn_bitmap.data());
+//	expansion.writeKeyFloat("DSINLAT", "Spacing in Sine-Latitude direction", dSinLat);
+	expansion.writeKeyFloat("MAXSL", "max(sin(latitude)), northern sin(latitude) of image boundary", maxSinLat);
+	expansion.writeKeyString("CTYPE1", "longitude", "CRLN-CEA");
+	expansion.writeKeyString("CTYPE2", "sine latitude", "CRLT-CEA");
+	//expansion.writeKeyString("CTYPE1", "", "HPLN-TAN");
+	//expansion.writeKeyString("CTYPE2", "", "HPLT-TAN");
+	expansion.writeKeyFloat("CDELT1", "coordinate increment along axis 1", dLong);
+	expansion.writeKeyFloat("CDELT2", "coordinate increment along axis 2", dSinLat);
+	expansion.writeKeyFloat("CRPIX1", "coord. system reference pixel 1", crpix1);
+	expansion.writeKeyFloat("CRPIX2", "coord. system reference pixel 2", crpix2);
+	expansion.writeKeyFloat("CRVAL1", "coordinate at ref. pixel 1", crval1);
+	expansion.writeKeyFloat("CRVAL2", "coordinate at ref. pixel 2", crval2);
+	//expansion.writeKeyFloat("CROTA1", "coord. system rotation angle 1", nullval);
+	//expansion.writeKeyFloat("CROTA2", "coord. system rotation angle 2", nullval);
+	expansion.writeKeyString("CUNIT1", "coordinate unit 1", "degree");
+	expansion.writeKeyString("CUNIT2", "coordinate unit 2", "sinlat");
+	expansion.writeKeyString("WCSNAME", "WCS name", "Heliographic");
+
 	return retval;
 }
 
@@ -1289,7 +1340,6 @@ void plotLine(hcImageRGBA &img, hcImageFloat &zbuf, hcImageBool &occ, const uint
 	}
 }
 
-//*
 void createOcculterMap(hcImageBool &occ, Imager &imager, hcFloat clipRadius, hcFloat sizeHor, hcFloat sizeVert,
 		const hcDate &date, hcFloat occRadius, bool invert)
 {
@@ -1388,7 +1438,6 @@ bool MagMapping::createProjectedView(const string fn, Imager &corImg, Imager &ph
 	// 																			print projected magmap
 	// ---------------------------------------------------------------------------------------
 
-	//*
 	MagMapping projMap = *this;
 
 	for(uint x=0; x<numPhi; ++x)
@@ -1414,7 +1463,7 @@ bool MagMapping::createProjectedView(const string fn, Imager &corImg, Imager &ph
 	createOcculterMap(occ, corImg, clipRadius, sizeHor, sizeVert, date, 1.0, false);
 
 
-	//*
+
 	for(uint x=0; x<numPhi; ++x)
 		for(uint y=0; y<numTheta; ++y)
 		{
@@ -1436,7 +1485,6 @@ bool MagMapping::createProjectedView(const string fn, Imager &corImg, Imager &ph
 	// ---------------------------------------------------------------------------------------
 	// 																			Draw the sun
 	// ---------------------------------------------------------------------------------------
-	/*
 
 	for(uint x=0; x<width; ++x)
 		for(uint y=0; y<height; ++y)

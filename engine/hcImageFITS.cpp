@@ -205,7 +205,7 @@ bool hcImageFITS::dumpAllKeys()
 	return(status==0);
 }
 
-bool hcImageFITS::readKeyString(string keyname, string &retval)
+bool hcImageFITS::readKeyString(const string &keyname, string &retval)
 {
 	retval = "";
 
@@ -219,7 +219,6 @@ bool hcImageFITS::readKeyString(string keyname, string &retval)
 	bool result 	= true;
 	char *comment 	= new char[100];
 	char *val		= new char[1000];
-
 
 	pthread_mutex_lock(&hcImageFITS::mutexFits);
 	if(fits_read_key(filePtr, TSTRING, keyname.data(), val, comment, &status))
@@ -236,7 +235,7 @@ bool hcImageFITS::readKeyString(string keyname, string &retval)
 	return result;
 }
 
-bool hcImageFITS::readKeyFloat(string keyname, hcFloat &value)
+bool hcImageFITS::readKeyFloat(const string &keyname, hcFloat &value)
 {
 	if (filePtr == NULL)
 	{
@@ -258,6 +257,11 @@ bool hcImageFITS::readKeyFloat(string keyname, hcFloat &value)
 	}
 	pthread_mutex_unlock(&hcImageFITS::mutexFits);
 
+	/*
+	char card[1000];
+	fits_read_card(filePtr, keyname.data(), card, &status);
+	cout << __FILE__ << "/" << __LINE__ << ": card: '" << card << "'\n";//*/
+
 	value = val;
 
 	delete [] comment;
@@ -268,7 +272,48 @@ bool hcImageFITS::readKeyFloat(string keyname, hcFloat &value)
 bool hcImageFITS::writeKeyFloat(const string &keyname, const string &comment, hcFloat value)
 {
 	int status 	= 0;
+	bool result = true;
 	float val 	= value;
+
+	if(filePtr == NULL)
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": filePtr not initialized. Save file first.\n";
+		return false;
+	}
+
+	/*	CFITSIO seems to do some keyword padding which the SAO-Viewer is not capable of understanding, therefore the cards are generated manually below
+	pthread_mutex_lock(&hcImageFITS::mutexFits);
+	if (fits_update_key(filePtr, TFLOAT, keyname.data(), &val, comment.data(), &status))
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": key " << keyname << "could not be written.\n";
+		printerror(status);
+		result = false;
+	}
+	pthread_mutex_unlock(&hcImageFITS::mutexFits);/*/
+
+	stringstream payload;
+	payload << std::setw(7) << std::left << keyname << " = " << value << "\0";
+	if(comment.length() > 0) payload << " / " << comment << "\0";
+
+	char card[80];
+	snprintf(card, 80, "%s", payload.str().data());
+
+	pthread_mutex_lock(&hcImageFITS::mutexFits);
+	if (fits_update_card(filePtr, keyname.data(), card, &status))
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": key " << keyname << " cannot be written.\n";
+		printerror(status);
+		result = false;
+	}
+	pthread_mutex_unlock(&hcImageFITS::mutexFits);
+
+	return result;
+}
+
+bool hcImageFITS::writeKeyString(const string &keyname, const string &comment, const string &value)
+{
+	int status 	= 0;
+	string val 	= value;
 
 	if(filePtr == NULL)
 	{
@@ -277,7 +322,7 @@ bool hcImageFITS::writeKeyFloat(const string &keyname, const string &comment, hc
 	}
 
 	pthread_mutex_lock(&hcImageFITS::mutexFits);
-	if (fits_update_key(filePtr, TFLOAT, keyname.data(), &val, comment.data(), &status))
+	if (fits_update_key(filePtr, TSTRING, keyname.data(), const_cast<void*>((void*)val.c_str()), comment.data(), &status))
 	{
 		cerr << __FILE__ << ":" << __LINE__ << ": key " << keyname << "could not be written.\n";
 		printerror(status);

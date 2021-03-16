@@ -43,13 +43,17 @@ public:
     bool dumpAllKeys();
     	/*!< \brief print all stored keys to screen												*/
 
-    bool readKeyString(string keyname, string &retval);
+    bool readKeyString(const string &keyname, string &retval);
     	/*!< \brief read key keyname and give back as string									*/
 
-    bool readKeyFloat(string keyname, hcFloat &value);
+    bool readKeyFloat(const string &keyname, hcFloat &value);
     	/*!< \brief read key keyname and convert to floating point value before returning		*/
 
     bool writeKeyFloat(const string &keyname, const string &comment, hcFloat value);
+    	/*!< \brief write key keyname with content value										*/
+
+    bool writeKeyString(const string &keyname, const string &comment, const string &value);
+    	/*!< \brief write key keyname with content value										*/
 
     hcFloat getHistogramMaximum(uint numBins);
 
