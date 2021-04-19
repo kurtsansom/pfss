@@ -87,7 +87,7 @@ bool LaplaceSolver::init(bool sinLatGrid, hcFloat maxSinLat, hcFloat r_ss, uint 
 
     if(ell==0.0)
     {
-    	cerr << __FILE__ << "/" << __LINE__ << " ellipticity 0.0 not allowed\n";
+    	printErrMess(__FILE__, __LINE__, "ellipticity 0.0 not allowed");
     	return false;
     }
 
@@ -97,182 +97,305 @@ bool LaplaceSolver::init(bool sinLatGrid, hcFloat maxSinLat, hcFloat r_ss, uint 
     return true;
 }
 
-void LaplaceSolver::iterateElliptic()
+void SphericalGrid::iterateElliptic_gridPoint(uint i, uint j, uint k)
+{
+	SphericalGrid &gr 	= *this;
+	uint numR       	= gr.numR;
+	uint numT	   		= gr.numTheta;
+	uint numP   		= gr.numPhi;
+	uint ind 			= k * numR * numT + j * numR + i;
+	hcFloat *psi		= gr.getPsiArray();
+
+	if(i==numR-1)
+	{
+		gr.setTemp(ind, 0.0);
+		gr.setRelError(ind, 0.0);
+	}
+	else if(i > 0)
+	{
+		uint km				= k==0		? numP-1: k-1;
+		uint kp				= k==numP-1	? 0		: k+1;
+
+		uint ind_imjk		= 				  	  gr.getIndex(i-1,	j,	 k );
+		uint ind_ipjk   	= 				  	  gr.getIndex(i+1,	j,	 k );
+
+		uint ind_ijmk		= j==0		? 0		: gr.getIndex(i,	j-1, k );
+		uint ind_ijpk		= j==numT-1	? 0		: gr.getIndex(i,	j+1, k );
+
+		uint ind_ijkm  		= 				  	  gr.getIndex(i,	j,	 km);
+		uint ind_ijkp  		= 				  	  gr.getIndex(i,	j,	 kp);
+
+		uint ind_imjmk		= j==0		? 0		: gr.getIndex(i-1,	j-1, k );
+		uint ind_imjpk		= j==numT-1	? 0		: gr.getIndex(i-1,	j+1, k );
+		uint ind_ipjmk		= j==0		? 0		: gr.getIndex(i+1,	j-1, k );
+		uint ind_ipjpk		= j==numT-1	? 0		: gr.getIndex(i+1,	j+1, k );
+
+		uint ind_imjkm		= 				  	  gr.getIndex(i-1,	j,	 km);
+		uint ind_imjkp		= 				  	  gr.getIndex(i-1,	j,	 kp);
+		uint ind_ipjkm		= 				  	  gr.getIndex(i+1,	j,	 km);
+		uint ind_ipjkp		= 				  	  gr.getIndex(i+1,	j,	 kp);
+
+		uint ind_ijmkm		= j==0		? 0		: gr.getIndex(i,	j-1, km);
+		uint ind_ijmkp		= j==0		? 0		: gr.getIndex(i,	j-1, kp);
+		uint ind_ijpkm		= j==numT-1	? 0		: gr.getIndex(i,	j+1, km);
+		uint ind_ijpkp		= j==numT-1	? 0		: gr.getIndex(i,	j+1, kp);
+
+		hcFloat psi_imjk	= psi[ind_imjk];
+		hcFloat psi_ipjk	= psi[ind_ipjk];
+
+		hcFloat psi_pole	= 0.0;
+		hcFloat psi_pole_m	= 0.0;
+		hcFloat psi_pole_p	= 0.0;
+		for(uint l=0; l<numP; ++l)
+		{
+			uint ind_pole 	= l * numR * numT + j * numR + i;
+			uint ind_pole_m	= l * numR * numT + j * numR + i-1;
+			uint ind_pole_p	= l * numR * numT + j * numR + i+1;
+
+			psi_pole 		+= psi[ind_pole];
+			psi_pole_m 		+= psi[ind_pole_m];
+			psi_pole_p 		+= psi[ind_pole_p];
+		}
+		psi_pole 			/= numP;
+		psi_pole_m 			/= numP;
+		psi_pole_p 			/= numP;
+
+		hcFloat psi_ijmk	= j==0			? psi_pole 		: psi[ind_ijmk];
+		hcFloat psi_ijpk	= j==numT-1 	? psi_pole 		: psi[ind_ijpk];
+
+		hcFloat psi_ijkm	= psi[ind_ijkm];
+		hcFloat psi_ijkp	= psi[ind_ijkp];
+
+		hcFloat psi_imjmk	= j==0			? psi_pole_m	: psi[ind_imjmk];
+		hcFloat psi_imjpk	= j==numT-1		? psi_pole_m	: psi[ind_imjpk];
+		hcFloat psi_ipjmk	= j==0			? psi_pole_p	: psi[ind_ipjmk];
+		hcFloat psi_ipjpk	= j==numT-1		? psi_pole_p	: psi[ind_ipjpk];
+
+		hcFloat psi_imjkm	= psi[ind_imjkm];
+		hcFloat psi_imjkp	= psi[ind_imjkp];
+		hcFloat psi_ipjkm	= psi[ind_ipjkm];
+		hcFloat psi_ipjkp	= psi[ind_ipjkp];
+
+		hcFloat psi_ijmkm	= j==0			? psi_pole		: psi[ind_ijmkm];
+		hcFloat psi_ijmkp	= j==0			? psi_pole		: psi[ind_ijmkp];
+		hcFloat psi_ijpkm	= j==numT-1		? psi_pole		: psi[ind_ijpkm];
+		hcFloat psi_ijpkp	= j==numT-1		? psi_pole		: psi[ind_ijpkp];
+
+		hcFloat s_ijk		= gr.s_ijk[ind];
+		hcFloat s_imjk 		= gr.s_imjk[ind];
+		hcFloat s_ipjk 		= gr.s_ipjk[ind];
+
+		hcFloat s_ijmk 		= gr.s_ijmk[ind];
+		hcFloat s_ijpk 		= gr.s_ijpk[ind];
+
+		hcFloat s_ijkm 		= gr.s_ijkm[ind];
+		hcFloat s_ijkp 		= gr.s_ijkp[ind];
+
+		hcFloat s_imjmk 	= gr.s_imjmk[ind];
+		hcFloat s_imjpk 	= gr.s_imjpk[ind];
+		hcFloat s_ipjmk 	= gr.s_ipjmk[ind];
+		hcFloat s_ipjpk 	= gr.s_ipjpk[ind];
+
+		hcFloat s_imjkm 	= gr.s_imjkm[ind];
+		hcFloat s_imjkp 	= gr.s_imjkp[ind];
+		hcFloat s_ipjkm 	= gr.s_ipjkm[ind];
+		hcFloat s_ipjkp 	= gr.s_ipjkp[ind];
+
+		hcFloat s_ijmkm 	= gr.s_ijmkm[ind];
+		hcFloat s_ijmkp 	= gr.s_ijmkp[ind];
+		hcFloat s_ijpkm 	= gr.s_ijpkm[ind];
+		hcFloat s_ijpkp 	= gr.s_ijpkp[ind];
+
+		hcFloat rhs		= psi_imjmk * s_imjmk	+ psi_imjpk * s_imjpk
+						+ psi_ipjmk * s_ipjmk	+ psi_ipjpk * s_ipjpk
+						+ psi_imjkm * s_imjkm	+ psi_imjkp * s_imjkp
+						+ psi_ipjkm * s_ipjkm	+ psi_ipjkp * s_ipjkp
+						+ psi_ijmkm * s_ijmkm 	+ psi_ijmkp * s_ijmkp
+						+ psi_ijpkm * s_ijpkm 	+ psi_ijpkp * s_ijpkp
+						+ psi_imjk  * s_imjk 	+ psi_ipjk  * s_ipjk
+						+ psi_ijmk  * s_ijmk	+ psi_ijpk  * s_ijpk
+						+ psi_ijkm  * s_ijkm	+ psi_ijkp  * s_ijkp;
+
+		hcFloat retval	= -1/s_ijk * rhs;
+
+		gr.setTemp(ind, retval);
+		gr.setRelError(ind, fabsf((gr.getTemp(ind) - gr.getPsi(ind)) / gr.getTemp(ind)));
+
+		//if(i<3)	cout << to_string(i) << "/" << to_string(j) << "/" << to_string(k) << " " << gr.getTemp(ind) << " " << gr.getRelError(ind) << "\n";
+
+
+		if (std::isnan(gr.getTemp(ind)) || std::isinf(gr.getTemp(ind)))
+		{
+			//printf("\n%u(%u)/%u(%u)/%u(%u)",	i, numR, j, numT, k, numP);
+			//if(std::isnan(gr.getTemp(ind)) || std::isinf(gr.getTemp(ind)))	nan = true;
+			printErrMess(__FILE__, __LINE__, "solver got nan/inf value");
+			exit(1);
+		}
+	}
+}
+
+/*! entry function for multicore creation of magnetic field lines
+ */
+void *LaplaceSolver::iterateElliptic_threadEntry(void *parameter)
+{
+	threadParamLaplace *param 	= (threadParamLaplace*)parameter;
+	SphericalGrid *grid			= param->grid;
+	uint id 					= param->idx;
+
+	bool debug 					= false;
+	if(debug)
+	{
+		cout << "------------------------------------------------------\n";
+		cout << "Thread:     " << param->threadID << "\n";
+		cout << "NumRunning: " << *param->numRunningThreads << "\n";
+		fflush(stdout);
+	}
+
+	SphericalGrid &gr 	= *grid;
+	uint numR       	= gr.numR;
+	uint numT	   		= gr.numTheta;
+	uint numP   		= gr.numPhi;
+
+	uint idx = id;
+	while( (idx < id + param->gppt) && (idx < numR*numT*numP) )
+	{
+		// compute position in grid
+		uint i = idx % numR;
+		uint j = ((idx   - i) / numR) % numT;
+		uint k = ((idx-i - j  * numR) / numR) / numT;
+
+		grid->iterateElliptic_gridPoint(i, j, k);
+
+		++idx;
+	}
+
+	pthread_mutex_lock(param->runningMutex);
+	--(*param->numRunningThreads);
+	*param->threadRunning = 0;
+	pthread_mutex_unlock(param->runningMutex);
+	pthread_exit(NULL);
+}
+
+void LaplaceSolver::iterateElliptic_MT()
 {
 	SphericalGrid &gr 	= *grid;
-	EllipticalGrid &egr	= *(EllipticalGrid*)grid;
+	uint numR      		= gr.numR;
+	uint numT	   		= gr.numTheta;
+	uint numP   		= gr.numPhi;
+	uint numGridPoints	= numR*numT*numP;
+	const uint gppt		= 1000;				// grid points to be computed per thread in each step
 
-	uint numR       = gr.numR;
-	uint numT   	= gr.numTheta;
-	uint numP  	   	= gr.numPhi;
+	uint numSubdiv      = numGridPoints / gppt + (numGridPoints % gppt == 0 ? 0 : 1);
 
-	Vec3D *pos		= gr.getPosArray();
-	hcFloat *psi	= gr.getPsiArray();
+	bool *workedUpon 	= new bool[numSubdiv];
 
-    bool nan = false;
+	for(uint i=0; i<numSubdiv; ++i)
+		workedUpon[i] = false;
+
+	pthread_t 				threads[		NUMTHREADS];
+	volatile _Atomic_word 	threadRunning[	NUMTHREADS];
+	threadParamLaplace		tParams[		NUMTHREADS];
+
+	pthread_mutex_t runningMutex 	= PTHREAD_MUTEX_INITIALIZER;
+	volatile _Atomic_word numRunningThreads = 0;
+
+	for(uint i=0; i<NUMTHREADS; ++i)
+	{
+		threadRunning[i] = 0;
+		tParams[i].init(i, &numRunningThreads, &runningMutex, &threadRunning[i], grid);
+	}
+
+	bool workLeft = true;
+
+	while(workLeft)
+	{
+		workLeft = false;
+		if(numRunningThreads < NUMTHREADS-1) // -1 should not be here, but then "if(j==numMaxThreads-1)" is triggered sometimes
+		{
+			//for(uint i=0; i<numR*numT*numP; ++i)
+			for(uint i=0; i<numSubdiv; ++i)
+			{
+				bool breaker = false;
+
+				if(!workedUpon[i])
+				{
+					workedUpon[i] 		= true;
+
+					for(uint j=0; j<NUMTHREADS; ++j)
+					{
+						if(threadRunning[j] == 0)
+						{
+							pthread_mutex_lock(&runningMutex);
+							++numRunningThreads;
+							threadRunning[j] = 1;
+							pthread_mutex_unlock(&runningMutex);
+							tParams[j].set(i*gppt, gppt);
+
+							//if(j==0)	cout << "Dispatch thread at point " << i*gppt << "subdiv: " << numSubdiv << "\n";fflush(stdout);
+							int rc = pthread_create(&threads[j], NULL, LaplaceSolver::iterateElliptic_threadEntry, (void*)(&tParams[j]));
+
+							if(rc)
+							{
+								printErrMess(__FILE__, __LINE__, "return code from pthread_create() is " + to_string(rc));
+								exit(1);
+							}
+							pthread_detach(threads[j]);
+							breaker = true;
+							break;
+						}
+
+						if(j==NUMTHREADS-1)
+						{
+							printErrMess(__FILE__, __LINE__, "No free thread found! (you should not be able to see this. If you do, I fucked up.... sorry)");
+							cerr << "numRunningThreads: " << numRunningThreads 	<< "\n";
+							cerr << "numMaxThreads:     " << NUMTHREADS 		<< "\n";
+							for(uint k=0; k<NUMTHREADS; ++k)
+								cerr << "Thread " << k << " running: " << threadRunning[k] << "\n";
+							exit(1);
+						}
+					}
+				}
+
+				if(breaker)	break;
+			}
+		}
+
+		for(uint i=0;i<numSubdiv;++i)
+			if(!workedUpon[i])
+			{
+				workLeft = true;
+				break;
+			}
+	}
+
+	while(numRunningThreads > 0)	usleep(100);
+
+	delete [] workedUpon;
+}
+
+void LaplaceSolver::iterateElliptic_ST()
+{
+	SphericalGrid &gr 	= *grid;
+	uint numR      		 = gr.numR;
+	uint numT	   		= gr.numTheta;
+	uint numP   		= gr.numPhi;
+	hcFloat *psi		= gr.getPsiArray();
 
     for(uint i=1; i<numR; ++i)
     	for(uint j=0; j<numT; ++j)
     		for(uint k=0; k<numP; ++k)
-    		{
-    			uint ind = k * numR * numT + j * numR + i;
+    			gr.iterateElliptic_gridPoint(i, j, k);
+}
 
-				if(i==numR-1)
-				{
-					gr.setTemp(ind, 0.0);
-					gr.setRelError(ind, 0.0);
-				}
-				else
-				{
-					uint km				= k==0		? numP-1: k-1;
-					uint kp				= k==numP-1	? 0		: k+1;
+void LaplaceSolver::iterateElliptic()
+{
+#if NUMTHREADS > 1
+	iterateElliptic_MT();
+#else
+	iterateElliptic_ST();
+#endif
 
-					uint ind_imjk		= 				  	  gr.getIndex(i-1,	j,	 k );
-					uint ind_ipjk   	= 				  	  gr.getIndex(i+1,	j,	 k );
-
-					uint ind_ijmk		= j==0		? 0		: gr.getIndex(i,	j-1, k );
-					uint ind_ijpk		= j==numT-1	? 0		: gr.getIndex(i,	j+1, k );
-
-					uint ind_ijkm  		= 				  	  gr.getIndex(i,	j,	 km);
-					uint ind_ijkp  		= 				  	  gr.getIndex(i,	j,	 kp);
-
-					uint ind_imjmk		= j==0		? 0		: gr.getIndex(i-1,	j-1, k );
-					uint ind_imjpk		= j==numT-1	? 0		: gr.getIndex(i-1,	j+1, k );
-					uint ind_ipjmk		= j==0		? 0		: gr.getIndex(i+1,	j-1, k );
-					uint ind_ipjpk		= j==numT-1	? 0		: gr.getIndex(i+1,	j+1, k );
-
-					uint ind_imjkm		= 				  	  gr.getIndex(i-1,	j,	 km);
-					uint ind_imjkp		= 				  	  gr.getIndex(i-1,	j,	 kp);
-					uint ind_ipjkm		= 				  	  gr.getIndex(i+1,	j,	 km);
-					uint ind_ipjkp		= 				  	  gr.getIndex(i+1,	j,	 kp);
-
-					uint ind_ijmkm		= j==0		? 0		: gr.getIndex(i,	j-1, km);
-					uint ind_ijmkp		= j==0		? 0		: gr.getIndex(i,	j-1, kp);
-					uint ind_ijpkm		= j==numT-1	? 0		: gr.getIndex(i,	j+1, km);
-					uint ind_ijpkp		= j==numT-1	? 0		: gr.getIndex(i,	j+1, kp);
-
-					hcFloat psi_pole	= 0.0;
-					hcFloat psi_pole_m	= 0.0;
-					hcFloat psi_pole_p	= 0.0;
-					for(uint l=0; l<numP; ++l)
-					{
-						uint ind_pole 	= l * numR * numT + j * numR + i;
-						uint ind_pole_m	= l * numR * numT + j * numR + i-1;
-						uint ind_pole_p	= l * numR * numT + j * numR + i+1;
-
-						psi_pole 		+= psi[ind_pole];
-						psi_pole_m 		+= psi[ind_pole_m];
-						psi_pole_p 		+= psi[ind_pole_p];
-					}
-					psi_pole 	/= numP;
-					psi_pole_m 	/= numP;
-					psi_pole_p 	/= numP;
-
-					hcFloat psi_imjk	= psi[ind_imjk];
-					hcFloat psi_ipjk	= psi[ind_ipjk];
-
-					hcFloat psi_ijmk	= j==0			? psi_pole 		: psi[ind_ijmk];
-					hcFloat psi_ijpk	= j==numT-1 	? psi_pole 		: psi[ind_ijpk];
-
-					hcFloat psi_ijkm	= psi[ind_ijkm];
-					hcFloat psi_ijkp	= psi[ind_ijkp];
-
-					hcFloat psi_imjmk	= j==0			? psi_pole_m	: psi[ind_imjmk];
-					hcFloat psi_imjpk	= j==numT-1		? psi_pole_m	: psi[ind_imjpk];
-					hcFloat psi_ipjmk	= j==0			? psi_pole_p	: psi[ind_ipjmk];
-					hcFloat psi_ipjpk	= j==numT-1		? psi_pole_p	: psi[ind_ipjpk];
-
-					hcFloat psi_imjkm	= psi[ind_imjkm];
-					hcFloat psi_imjkp	= psi[ind_imjkp];
-					hcFloat psi_ipjkm	= psi[ind_ipjkm];
-					hcFloat psi_ipjkp	= psi[ind_ipjkp];
-
-					hcFloat psi_ijmkm	= j==0			? psi_pole		: psi[ind_ijmkm];
-					hcFloat psi_ijmkp	= j==0			? psi_pole		: psi[ind_ijmkp];
-					hcFloat psi_ijpkm	= j==numT-1		? psi_pole		: psi[ind_ijpkm];
-					hcFloat psi_ijpkp	= j==numT-1		? psi_pole		: psi[ind_ijpkp];
-
-					hcFloat s_ijk		= gr.s_ijk[ind];
-					hcFloat s_imjk 		= gr.s_imjk[ind];
-					hcFloat s_ipjk 		= gr.s_ipjk[ind];
-
-					hcFloat s_ijmk 		= gr.s_ijmk[ind];
-					hcFloat s_ijpk 		= gr.s_ijpk[ind];
-
-					hcFloat s_ijkm 		= gr.s_ijkm[ind];
-					hcFloat s_ijkp 		= gr.s_ijkp[ind];
-
-					hcFloat s_imjmk 	= gr.s_imjmk[ind];
-					hcFloat s_imjpk 	= gr.s_imjpk[ind];
-					hcFloat s_ipjmk 	= gr.s_ipjmk[ind];
-					hcFloat s_ipjpk 	= gr.s_ipjpk[ind];
-
-					hcFloat s_imjkm 	= gr.s_imjkm[ind];
-					hcFloat s_imjkp 	= gr.s_imjkp[ind];
-					hcFloat s_ipjkm 	= gr.s_ipjkm[ind];
-					hcFloat s_ipjkp 	= gr.s_ipjkp[ind];
-
-					hcFloat s_ijmkm 	= gr.s_ijmkm[ind];
-					hcFloat s_ijmkp 	= gr.s_ijmkp[ind];
-					hcFloat s_ijpkm 	= gr.s_ijpkm[ind];
-					hcFloat s_ijpkp 	= gr.s_ijpkp[ind];
-
-					hcFloat rhs		= psi_imjmk * s_imjmk	+ psi_imjpk * s_imjpk
-									+ psi_ipjmk * s_ipjmk	+ psi_ipjpk * s_ipjpk
-									+ psi_imjkm * s_imjkm	+ psi_imjkp * s_imjkp
-									+ psi_ipjkm * s_ipjkm	+ psi_ipjkp * s_ipjkp
-									+ psi_ijmkm * s_ijmkm 	+ psi_ijmkp * s_ijmkp
-									+ psi_ijpkm * s_ijpkm 	+ psi_ijpkp * s_ijpkp
-									+ psi_imjk  * s_imjk 	+ psi_ipjk  * s_ipjk
-									+ psi_ijmk  * s_ijmk	+ psi_ijpk  * s_ijpk
-									+ psi_ijkm  * s_ijkm	+ psi_ijkp  * s_ijkp;
-
-					/*											// relaxation
-					hcFloat newVal	= -1/s_ijk * rhs;
-					hcFloat psi		= gr.getPsi(ind);
-					hcFloat relax	= 0.1;						// smaller than 1 -> under relaxation, otherwise -> overrelaxation
-					hcFloat retval	= (1.0-relax)*psi + relax * newVal;
-					//*/
-					hcFloat retval	= -1/s_ijk * rhs;//*/
-
-					gr.setTemp(ind, retval);
-					gr.setRelError(ind, fabs((gr.getTemp(ind) - gr.getPsi(ind)) / gr.getTemp(ind)));
-
-					if (std::isnan(gr.getTemp(ind)) || std::isinf(gr.getTemp(ind)))// || (i==1 && j==0 && k==0))
-					{
-						printf("\n%u(%u)/%u(%u)/%u(%u)",	i, numR, j, numT, k, numP);
-
-						printf("simjmk: %E - simjpk: %E \
-								\rsipjmk: %E - sipjpk: %E \
-								\rsimjkm: %E - simjkp: %E \
-								\rsipjkm: %E - sipjkp: %E \
-								\rsijmkm: %E - sijmkp: %E \
-								\rsijpkm: %E - sijpkp: %E \
-								\rsimjk:  %E - sipjk:  %E \
-								\rsijmk:  %E - sijpk:  %E \
-								\rsijkm:  %E - sijkp:  %E\n\n",
-								s_imjmk, s_imjpk,
-								s_ipjmk, s_ipjpk,
-								s_imjkm, s_imjkp,
-								s_ipjkm, s_ipjkp,
-								s_ijmkm, s_ijmkp,
-								s_ijpkm, s_ijpkp,
-								s_imjk,  s_ipjk,
-								s_ijmk,  s_ijpk,
-								s_ijkm,  s_ijkp);
-
-						if(std::isnan(gr.getTemp(ind)) || std::isinf(gr.getTemp(ind)))
-								nan = true;
-
-						exit(1);
-					}
-				}
-    		}
-
-    if(nan)
-    	exit(1);
-
-    for(uint i=1; i<grid->numR-1; ++i)
+	for(uint i=1; i<grid->numR-1; ++i)
 		for(uint j=0; j<grid->numTheta; ++j)
 			for(uint k=0; k<grid->numPhi; ++k)
 			{
@@ -280,7 +403,6 @@ void LaplaceSolver::iterateElliptic()
 				grid->setPsi(ind, grid->getTemp(ind));
 			}
 }
-
 
 void LaplaceSolver::iterateSpheric()
 {
@@ -368,7 +490,7 @@ void LaplaceSolver::iterateSpheric()
             }
 }
 
-void LaplaceSolver::iterate()
+void LaplaceSolver::iterate_CPU()
 {
 #ifdef SPHERICUNITVEC
 	if(!grid->isElliptical())
@@ -389,7 +511,7 @@ void LaplaceSolver::computeLowerBoundary_CPU(hcImageFITS &boundary)
         for(uint k=0; k<numP; ++k)
         {
             uint ind    	= k * numR * numT + j * numR;
-            uint texInd 	= (numT - 1 - j) * numP + k;		// TODO: false index?
+            //uint texInd 	= (numT - 1 - j) * numP + k;		// TODO: false index?
 
             Vec3D pos		= gr.pos[ind];
 			Vec3D pos_p		= gr.pos[ind+1];
@@ -446,13 +568,81 @@ int LaplaceSolver::computeSolution(hcImageFITS &photBoundary)
 #endif
     stop.setFromSystemTime();
     uint seconds 	= (stop-start)/hcDate::facSec;
-    cout << "Computation time: " << seconds << " s, solution steps: " << retval <<"\n";fflush(stdout);
+    printStdOutMess(__FILE__, __LINE__, "Computation time: " + to_string(seconds) + " s, solution steps: " + to_string(retval));
     return retval;
 }
 
 int LaplaceSolver::computeSolution_CPU(uint maxNumIterations, hcFloat threshold, hcImageFITS &photBoundary)
 {
-	bool debug = false;
+#if NUMTHREADS > 1
+	printStdOutMess(__FILE__, __LINE__, "CPU-version (NUMTHREADS=" + to_string(NUMTHREADS) + ") of PFSS solver started");
+#else
+	printStdOutMess(__FILE__, __LINE__, "CPU-version (single-trheaded) of PFSS solver started");
+#endif
+
+    grid->clearValues();
+
+    // first, compute the lower boundary potential via B_r = - dPsi / dr -> Psi_0 = Phsi_1 + dr * B_r
+    // => Psi_0(t=0) = dr * B_l * csc(theta)
+    computeLowerBoundary_CPU(photBoundary);
+
+    // now perform the main loop. Compute next value for Psi and abort
+    // if the difference to the step before is below threshold
+    hcFloat maxError		= threshold;
+    uint counter            = 0;
+    uint threshCheckSteps   = 100;
+
+    uint loopnum 			= 0;
+    while(loopnum < maxNumIterations)
+    {
+        ++counter;
+        iterate_CPU();
+        computeLowerBoundary_CPU(photBoundary);
+
+        if(counter == threshCheckSteps)
+        {
+            counter 	= 0;
+            maxError 	= 0.0;
+
+            for(uint i=1;i<grid->numR;++i)
+                for(uint j=0;j<grid->numTheta;++j)
+                    for(uint k=0;k<grid->numPhi;++k)
+                    {
+                        uint ind = grid->getIndex(i,j,k);
+                        if(grid->getRelError(ind) > maxError)	maxError = grid->getRelError(ind);
+                    }
+        }
+
+#ifdef VERBOSE
+			cout << "\r                                                                                                                           \r";
+			cout << "\tstep " << loopnum << "/" << maxNumIterations << ", error/threshold: " << toStr(maxError) << "/" << toStr(threshold);fflush(stdout);
+#endif
+
+        if(maxError < threshold)
+		{
+#ifdef VERBOSE
+        	cout << "\n";
+#endif
+			break;
+		}
+        ++loopnum;
+    }
+
+   	for(uint i=0;i<grid->numR;++i)
+        for(uint j=0;j<grid->numTheta;++j)
+            for(uint k=0;k<grid->numPhi;++k)
+            {
+            	uint ind 		= grid->getIndex(i,j,k);
+            	Vec3D pos		= grid->pos[ind];
+				grid->B[ind]	= grid->getBFromPsi(i,j,k);
+            }
+
+    solutionComputed = true;
+
+    return loopnum;
+
+	/*
+	printStdOutMess(__FILE__, __LINE__, "CUDA-version of PFSS solver started");
     uint loopnum = 0;
     grid->clearValues();
 
@@ -478,13 +668,6 @@ int LaplaceSolver::computeSolution_CPU(uint maxNumIterations, hcFloat threshold,
             maxIncrement	= getMaxIncrement();
         }
 
-        if(debug)
-        {
-			printf("\r                                                      \r");
-			printf("%u / %u, error / max error: %E / %E", loopnum, maxNumIterations, maxIncrement, threshold);
-			fflush(stdout);
-        }
-
         if(maxIncrement < threshold)	break;
         ++loopnum;
     }
@@ -500,7 +683,7 @@ int LaplaceSolver::computeSolution_CPU(uint maxNumIterations, hcFloat threshold,
 
     solutionComputed = true;
 
-    return loopnum;
+    return loopnum;//*/
 }
 
 void LaplaceSolver::dump() const{

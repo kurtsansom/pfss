@@ -10,6 +10,8 @@
 using namespace boost;
 using namespace filesystem;
 
+extern string dirData;
+
 /*! @param	inDir					direcory to be worked upon
  * 	@param	r_ss					heliocenric position of source surface
  *	@param	compResR				radial resolution of computational grid
@@ -30,11 +32,7 @@ bool PFSSsolution::batchKielSHC(const char *inDir, hcFloat r_ss,
         return false;
     }
 
-    if (outDir[0] == '\0')
-	{
-    	printf("ERROR!\tPFSSsolution::batchKielSHC\n\t output directory has not been set!\n");
-    	return false;
-	}
+    if(!isDirSet()) return false;
 
 	cout << "--------------------------------------------------------------------\n";
 	cout << "-- PFSS::batchKielSHC on dir: '" << inDir << "'\n";
@@ -51,9 +49,8 @@ bool PFSSsolution::batchKielSHC(const char *inDir, hcFloat r_ss,
 	for (directory_iterator dir_iter(inDir) ; dir_iter != end_iter ; ++dir_iter)
         if (is_regular_file(dir_iter->status()))
         {
-        	char filename[1000];
-        	sprintf(filename, dir_iter->path().c_str());
-            printf("Working on file\n'%s'\n\n", filename);
+        	string filename = dir_iter->path().string();
+			cout << "Working on file '" << filename << "'\n";fflush(stdout);
             computeAndMapKielSHC(filename, 9, r_ss, compResR, mapResTheta, mapResPhi, mapIntermediateHeights);
         }
         else
@@ -85,29 +82,20 @@ bool PFSSsolution::batchKielSHC(const char *inDir, hcFloat r_ss,
  *
  */
 bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,
-		uint compResR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights, hcFloat ellipticity)
+		uint resCompR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights, hcFloat ellipticity)
 {
     if (!exists(inDir) || !is_directory(inDir))
     {
-    	printf("ERROR!\tPFSSsoluion::batchKielGrid\n\t input directory '%s' does not exist\n", inDir);
+    	printErrMess(__FILE__, __LINE__, "input directory '" + inDir + "' does not exist");
         return false;
     }
 
-    if (outDir[0] == '\0')
-	{
-    	printf("ERROR!\tPFSSsolution::batchKielGrid\n\t output directory has not been set!\n");
-    	return false;
-	}
+    if(!isDirSet()) return false;
 
-	cout << "--------------------------------------------------------------------\n";
-	cout << "-- PFSS::batchKielGrid on dir: '" << inDir << "'\n";
-	cout << "-- r_ss:        " << r_ss /r_sol	<< " r_sol\n";
-	cout << "-- ellipticity: " << ellipticity	<< "\n";
-	cout << "-- compResR:    " << compResR 		<< "\n";
-	cout << "-- mapResTheta: " << mapResTheta 	<< "\n";
-	cout << "-- mapResPhi:   " << mapResPhi 	<< "\n";
-	cout << "--------------------------------------------------------------------\n\n";
-	fflush(stdout);
+    printStdOutMess(__FILE__, __LINE__, "started batch computation on directory '" + inDir + "'");
+    printStdOutMess(__FILE__, __LINE__, "r_ss:        " + toStr(r_ss /r_sol) + " r_sol");
+    printStdOutMess(__FILE__, __LINE__, "ellipticity: " + toStr(ellipticity));
+    printStdOutMess(__FILE__, __LINE__, "resCompR:    " + toStr(resCompR));
 
 	path directory(inDir);
 	directory_iterator end_iter;
@@ -116,21 +104,33 @@ bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,
         if (is_regular_file(dir_iter->status()))
         {
         	string filename = dir_iter->path().string();
-        	cout << "Working on file '" << filename << "'\n";fflush(stdout);
+        	printStdOutMess(__FILE__, __LINE__, "working on file '" + filename + "'");
             //computeAndMapKielGrid(filename, "", r_ss, compResR, mapResTheta, mapResPhi, mapIntermediateHeights, ellipticity);
-
-            computeKielGrid(filename, "", r_ss, compResR, ellipticity);
+            computeKielGrid(filename, "", r_ss, resCompR, ellipticity);
         }
         else
         {
-            printf("ERROR! HelioMagfield::batchKielGrid: file %s is not a regular file!\n", dir_iter->path().c_str());
+            printErrMess(__FILE__, __LINE__, "file '" + string(dir_iter->path().c_str()) + "' is not a regular file");
             continue;
         }
 
-    printf("--------------------------------------------------------------------------\n");
-    printf("--- PFSSsolution::batchKielGrid concluded. \n");
-    printf("--------------------------------------------------------------------------\n\n");
+    return true;
+}
 
+bool PFSSsolution::batchMap(uint resMapTheta, uint resMapPhi, bool mapIntermediateHeights)
+{
+    if(!isDirSet()) return false;
+
+    printStdOutMess(__FILE__, __LINE__, "started batch mapping on directory '" + dirData + "'");
+
+	directory_iterator end_iter;
+
+	for (directory_iterator dir_iter(dirData) ; dir_iter != end_iter ; ++dir_iter)
+		if(is_directory(dir_iter->status()))
+			for (directory_iterator dir_iter2(dir_iter->path().c_str()) ; dir_iter2 != end_iter ; ++dir_iter2)
+				if (is_regular_file(dir_iter2->status()))
+					if(isFileType_pfssSolutionConfig(dir_iter2->path().string()))
+						loadAndMapKielGrid(dir_iter2->path().string(), resMapTheta, resMapPhi, mapIntermediateHeights);
     return true;
 }
 
@@ -360,74 +360,6 @@ bool PFSSsolution::batchCoronagraphAnalysis(hcSortedList<hcDate> &dates, const h
 }//*/
 #endif
 
-/*! opens inDir and computes filters on magnetic photospheric maps
- *
- */
-void PFSSsolution::filterPhotMaps(const char *inDir)
-{
-    path directory(inDir);
-    directory_iterator end_iter;
-
-    if (!exists(inDir) || !is_directory(inDir))
-    {
-    	printf("ERROR!\tPFSSsolution::filterPhotMaps\n\t input directory '%s' does not exist\n", inDir);
-        return;
-    }
-
-    if (outDir[0] == '\0')
-	{
-    	printf("ERROR!\tPFSSsolution::filterPhotMaps\n\t output directory has not been set!\n");
-    	return;
-	}
-
-	printf("--------------------------------------------------------------------\n");
-	printf("-- PFSS::filterPhotMaps in dir: '%s'\n", inDir);
-	printf("--------------------------------------------------------------------\n\n");
-
-	for (directory_iterator dir_iter(inDir) ; dir_iter != end_iter ; ++dir_iter)
-    {
-        if (!is_regular_file(dir_iter->status()))
-        {
-        	printf("ERROR! PFSSsolution::filterPhotMaps: file %s is not a regular file!\n", dir_iter->path().c_str());
-			continue;
-        }
-
-		char filename[1000];
-		sprintf(filename, dir_iter->path().c_str());
-
-		char fn[1000];
-		boost::regex reg(".*/(.*)\\.FITS", boost::regex::icase);
-		boost::cmatch what;
-		bool retval = boost::regex_search(filename, what, reg);
-		sprintf(fn, what[1].str().c_str());
-
-		hcImageFITS img(filename);
-		hcImageFITS imgMean(img);
-		hcImageFITS imgMedian(img);
-		imgMean.meanFilter(5, true);
-		imgMedian.medianFilter(5, true);
-
-		char outFN[1000];
-		sprintf(outFN, "%s/%s.FITS", outDir, fn);
-		img.save(outFN);
-
-		sprintf(outFN, "%s/%s_mean.FITS", outDir, fn);
-		imgMean.save(outFN);
-
-		sprintf(outFN, "%s/%s_median.FITS", outDir, fn);
-		imgMedian.save(outFN);
-
-		hcFloat meanDiff 	= imgMean.meanSquaredDiff(img);
-		hcFloat medianDiff	= imgMedian.meanSquaredDiff(img);
-
-		printf("%E\t%E\t%s\n", meanDiff, medianDiff, meanDiff < medianDiff ? "<" : ">-------");
-    }
-
-    printf("--------------------------------------------------------------------------\n");
-    printf("--- INFO: PFSSsolution::filterPhotMaps concluded. \n");
-    printf("--------------------------------------------------------------------------\n\n");
-}
-
 void PFSSsolution::compare2Stanford(const char *photFilename, const char *StanfordCoeffFilename,
 		uint compRadialRes, uint compThetaRes, uint compPhiRes, bool rDistribution, hcFloat geomIncFactor,
 		uint imgThetaRes,   uint imgPhiRes,    bool mapIntermediateHeights)
@@ -438,11 +370,7 @@ void PFSSsolution::compare2Stanford(const char *photFilename, const char *Stanfo
 		return;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::compare2Stanford\n\t output directory has not been set!\n");
-		return;
-	}
+	if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::compare2Stanford:\n-- photFile:\t'%s'\n-- coeffFile:\t '%s'\n", photFilename, StanfordCoeffFilename);
@@ -471,11 +399,7 @@ void PFSSsolution::compareSHCorders(const string &photFilename, hcFloat r_ss,
 		return;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": output directory has not been set.\n";
-		return;
-	}
+	if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::compareSHCorders on file: '%s'\n", photFilename.data());
@@ -503,11 +427,7 @@ void PFSSsolution::compareRdist(const char *inDir, uint compRadialRes, uint comp
 		return;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::paramStudyNoise\n\t output directory has not been set!\n");
-		return;
-	}
+	if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::compareRdist on dir: '%s'\n", inDir);
@@ -526,18 +446,6 @@ void PFSSsolution::compareRdist(const char *inDir, uint compRadialRes, uint comp
 	{
 		hcFloat rFactor = 1.0 + (highestFac-1.0)/(numRdists-1) * l;
 		printf("Compute rDist %E\n", rFactor);
-
-		/*
-		sprintf(idString, "rFactor_%E", rFactor);
-
-		if(!loadPhotBoundary(filename, idString, MODEL_PFSS, METH_NUMERIC, GROUP_KIEL, 2.5*r_sol, compRadialRes))
-		{
-			printf("ERROR! PFSSsolution::computeAndMapKielSHC: File %s could not be loaded! Continue with next file!\n", filename);
-			return;
-		}//*/
-
-		cout << "PFSSsolution::compareRdist needs optionalID for pfsssolutioninfo\n";
-		exit(1);
 
 		solver.computeSolution(photBoundary);
 		save();
@@ -575,8 +483,10 @@ void PFSSsolution::compareRdist(const char *inDir, uint compRadialRes, uint comp
 			}
 		}
 
-		char fnRadImage[1000];
-		sprintf(fnRadImage, "%s/1_radialNormedMap_%s.fits", outDir, idString);
+		//char fnRadImage[1000];
+		//sprintf(fnRadImage, "%s/1_radialNormedMap_%s.fits", outDir, idString);
+
+		string fnRadImage = dirData + "/" + "1_radialNormedMap_" + idString + ".fits";
 		normedImage.save(fnRadImage);
 
 		hcImageFITS	unnormedImage;
@@ -590,7 +500,8 @@ void PFSSsolution::compareRdist(const char *inDir, uint compRadialRes, uint comp
 			}
 		}
 
-		sprintf(fnRadImage, "%s/2_radialunNormedMap_%s.fits", outDir, idString);
+		//sprintf(fnRadImage, "%s/2_radialunNormedMap_%s.fits", outDir, idString);
+		fnRadImage = dirData + "/2_radialunNormedMap_" + idString + ".fits";
 		unnormedImage.save(fnRadImage);
 	}
 
@@ -623,11 +534,7 @@ void PFSSsolution::compareAnaInter(const char *inDir)
 		return;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::paramStudyNoise\n\t output directory has not been set!\n");
-		return;
-	}
+	if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::compareAnaInter on dir: '%s'\n", inDir);
@@ -637,39 +544,25 @@ void PFSSsolution::compareAnaInter(const char *inDir)
 	{
 		if (is_regular_file(dir_iter->status()))
 		{
-			char filename[1000];
-			sprintf(filename, dir_iter->path().c_str());
-
-			printf("Working on file\n'%s'\n\n", filename);
-
-
-
-			/*
-			char idString[1000];
-			char numbers[4];
-			sprintf(numbers, "0%u", 9);
-			sprintf(idString, "maxHarmonicOrder%s_", numbers);
-
-
-			if(!loadPhotBoundary(filename, idString, MODEL_PFSS, METH_SHC, GROUP_KIEL, 2.5*r_sol,
-					compRadialRes, compThetaRes, compPhiRes))
-			{
-				printf("ERROR! PFSSsolution::computeAndMapKielSHC: File %s could not be loaded! Continue with next file!\n", filename);
-				return;
-			}//*/
+			//char filename[1000];
+			//sprintf(filename, dir_iter->path().c_str());
+			//printf("Working on file\n'%s'\n\n", filename);
+			string filename = dir_iter->path().string();
+			cout << "Working on file '" << filename << "'\n";fflush(stdout);
 
 			cout << "PFSSsolution::compareAnaInter needs optionalID for pfsssolutioninfo\n";
 			exit(1);
 
 			printf("Computing coefficients for principal order %u\n", 9);
 
-			stringstream coeffFN;
-			coeffFN << outDir << "/" << info.CRnum << "/" << getFilename_harmonicCoeff(info);
+			//stringstream coeffFN;
+			//coeffFN << outDir << "/" << info.CRnum << "/" << getFilename_harmonicCoeff(info);
+			string coeffFN = dirData + "/" + to_string(info.CRnum) + "/" + getFilename_harmonicCoeff(info);
 
 			PFSSsolution_SHC_sun coeffMagfield;
 			coeffMagfield.determineCoefficientsFromPhotMagfield(9, 2.5*r_sol, photBoundary);
 			solver.solutionComputed = true;
-			coeffMagfield.exportCoefficients(coeffFN.str().data());
+			coeffMagfield.exportCoefficients(coeffFN.data());
 
 			for(uint r=0;r<solver.grid->numR;++r)
 				for(uint t=0;t<solver.grid->numTheta;++t)
@@ -701,74 +594,6 @@ void PFSSsolution::compareAnaInter(const char *inDir)
 	printf("--------------------------------------------------------------------------\n\n");
 }
 
-/*! conducts a parameter study of noise in the magnetograms on files in directory inDir
- *
- */
-void PFSSsolution::paramStudyNoise(const char *inDir, uint compRadialRes, uint compThetaRes, uint compPhiRes,
-								uint imgThetaRes,  uint imgPhiRes, uint numNoiseComputations)
-{
-    path directory(inDir);
-    directory_iterator end_iter;
-
-    if (!exists(inDir) || !is_directory(inDir))
-    {
-    	printf("ERROR!\tPFSSsoluion::paramStudyNoise\n\t input directory '%s' does not exist\n", inDir);
-        return;
-    }
-
-    if (outDir[0] == '\0')
-	{
-    	printf("ERROR!\tPFSSsolution::paramStudyNoise\n\t output directory has not been set!\n");
-    	return;
-	}
-
-	printf("--------------------------------------------------------------------\n");
-	printf("-- PFSS::paramStudyNoise on dir: '%s'\n", inDir);
-	printf("--------------------------------------------------------------------\n\n");
-
-	for (directory_iterator dir_iter(inDir) ; dir_iter != end_iter ; ++dir_iter)
-    {
-        if (is_regular_file(dir_iter->status()))
-        {
-        	char filename[1000];
-        	sprintf(filename, dir_iter->path().c_str());
-
-            printf("Working on file\n'%s'\n\n", filename);
-
-            for(uint i=0; i<=numNoiseComputations; ++i)
-            {
-            	char idString[1000];
-
-				if(i==0)				sprintf(idString, "noNoise_");
-				else
-				{
-					char numbers[4];
-					if(		i<10)		sprintf(numbers, "000%u", i);
-					else if(i<100)		sprintf(numbers, "00%u", i);
-					else if(i<1000)		sprintf(numbers, "0%u", i);
-					else				sprintf(numbers, "%u", i);
-
-					sprintf(idString, "noise%s_", numbers);
-
-					//photBoundary.addSignedFractionNoise(0.1, i);
-					//photBoundary.addPixelNoise(0.9, i);
-				}
-
-				computeAndMapKielGrid(filename, idString, 2.5*r_sol, compRadialRes, false, imgThetaRes, imgPhiRes, false, 1.0);
-            }
-        }
-        else
-        {
-            printf("ERROR! HelioMagfield::paramStudyNoise: file %s is not a regular file!\n", dir_iter->path().c_str());
-            continue;
-        }
-    }
-
-    printf("--------------------------------------------------------------------------\n");
-    printf("--- INFO: PFSSsolution::paramStudyNoise concluded. \n");
-    printf("--------------------------------------------------------------------------\n\n");
-}
-
 /*! conducts a parameter study of the solver threshold level on input file named filename
  *
  */
@@ -781,11 +606,7 @@ void PFSSsolution::paramStudyThresh(const char *filename, uint compRadialRes, ui
         return;
     }
 
-    if (outDir[0] == '\0')
-	{
-    	printf("ERROR!\tPFSSsolution::paramStudyNoise\n\t output directory has not been set!\n");
-    	return;
-	}
+    if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::paramStudyThresh on file: '%s'\n", filename);
@@ -832,11 +653,7 @@ void PFSSsolution::paramStudyRss(const char *inDir, uint compRadialRes, uint com
         return;
     }
 
-    if (outDir[0] == '\0')
-	{
-    	printf("ERROR!\tPFSSsolution::paramStudyRss\n\t output directory has not been set!\n");
-    	return;
-	}
+    if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::paramStudyRss on dir: '%s'\n", inDir);
@@ -846,10 +663,11 @@ void PFSSsolution::paramStudyRss(const char *inDir, uint compRadialRes, uint com
     {
         if (is_regular_file(dir_iter->status()))
         {
-        	char filename[1000];
-        	sprintf(filename, dir_iter->path().c_str());
-
-            printf("Working on file\n'%s'\n\n", filename);
+        	//char filename[1000];
+        	//sprintf(filename, dir_iter->path().c_str());
+            //printf("Working on file\n'%s'\n\n", filename);
+        	string filename = dir_iter->path().string();
+			cout << "Working on file '" << filename << "'\n";fflush(stdout);
 
             for(uint i=4; i<5; ++i)
             {
@@ -883,11 +701,7 @@ void PFSSsolution::paramStudyRss(const char *inDir, uint compRadialRes, uint com
  */
 void PFSSsolution::paramStudyRes()
 {
-    if (outDir[0] == '\0')
-	{
-    	cerr << __FILE__ << ":" << __LINE__ << " output directory has not been set\n";
-    	return;
-	}
+	if(!isDirSet()) return;
 
     stringstream filename;
     filename << "../data/PFSS/input/synop_Ml_0.2066.fits";
@@ -907,13 +721,6 @@ void PFSSsolution::paramStudyRes()
 		computeAndMapKielGrid(filename.str().data(), "", rss, i, imgThetaRes, imgPhiRes, false, 2.0);
 	}
 
-	/*
-	for(uint i=nlow; i<=nhigh; ++i)
-	{
-		cout << "Working on radialRes " << i << "\n";fflush(stdout);
-		computeAndMapKielGrid(filename.str().data(), "", 2*r_sol, i, imgThetaRes, imgPhiRes, false, 1.0);
-	}/*///
-
     cout << "--------------------------------------------------------------------------\n";
     cout << "--- INFO: PFSSsolution::paramStudyRes concluded. \n";
     cout << "--------------------------------------------------------------------------\n\n";
@@ -927,11 +734,7 @@ void PFSSsolution::paramStudyScaleMethod(const char *filename)
 		return;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::paramStudyAngularRes\n\t output directory has not been set!\n");
-		return;
-	}
+	if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::paramStudyAngularRes on file '%s'\n", filename);
@@ -973,11 +776,7 @@ void PFSSsolution::paramStudyRadialRes(const char *filename)
 		return;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::paramStudyRadialRes\n\t output directory has not been set!\n");
-		return;
-	}
+	if(!isDirSet()) return;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::paramStudyRadialRes on file '%s'\n", filename);

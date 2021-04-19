@@ -131,6 +131,9 @@ public:
     double getCarringtonTime() const;
     	/*!< \brief get Carrington Longitude in degrees (sub-earth point, measured from 0° at TODO ???)					*/
 
+    string getTOD() const;
+    	/*!< \brief returns human readable time of day																	*/
+
     uint getCarringtonRotationNum() const;
 		/*!< brief get Carrington rotation number corresponding to this date											*/
 

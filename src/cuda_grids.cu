@@ -367,13 +367,12 @@ void SphericalGrid::extract_relError(){
 
 	SphericalGrid *tAlloc = new SphericalGrid;;
 	cudaMemcpy(tAlloc, d_memStruct, sizeof(SphericalGrid), cudaMemcpyDeviceToHost);
-
 	cudaMemcpy(relError, tAlloc->relError, numGridPoints * sizeof(hcFloat), cudaMemcpyDeviceToHost);
 
 	tAlloc->initNULL();
 	delete tAlloc;
 
-	checkCUDAerror("SphericalGrid::extractRelError");
+	checkCUDAerror(__FILE__, __LINE__);
 }
 
 

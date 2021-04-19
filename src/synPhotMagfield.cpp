@@ -2,64 +2,10 @@
 #include "src/carRotInfo.h"
 #include "src/filenames.h"
 
-//#include "engine/hcCamera.h"
-
 #include "boost/regex.hpp"
 #include "boost/lexical_cast.hpp"
 #include "math.h"
-
 #include <iomanip>
-//#include <string.h>
-
-using namespace std;
-
-bool createVerenaDailyMap(hcDate date, const string &folder)
-{
-	if(!directoryExists(folder))
-	{
-		printf("ERROR! createVerenaDailyMap: Folder '%s' does not exist!\n", folder);
-		return false;
-	}
-
-	uint carRot		= date.getCarringtonRotationNum();
-	hcFloat carTime = date.getCarringtonTime();
-	hcFloat carLong	= date.getCarringtonLongitude();
-
-	char fn_n[1000];
-	char fn_pm[1000];
-
-	sprintf(fn_n,  "%s/synop_Ml_0.%u.fits", folder, carRot);
-	sprintf(fn_pm, "%s/synop_Ml_0.%u.fits", folder, carLong < 180.0 ? carRot+1 : carRot-1);
-
-	printf("long: %E, carRot: %u, pm: %u\n", carLong, carRot, carLong < 180.0 ? carRot+1 : carRot-1);
-
-	hcImageFITS rot_n, rot_pm, rot_daily;
-
-	if(!doesFileExist(fn_n) || !doesFileExist(fn_pm) || !rot_n.load(fn_n) || !rot_pm.load(fn_pm))
-	{
-		printf("ERROR! createVerenaDailyMap: one of the files '%s' or '%s' does not exist!\n", fn_n, fn_pm);
-		return false;
-	}
-
-	rot_daily.init(rot_n.width, rot_n.height);
-
-	for(uint x=0; x<rot_n.width; ++x)
-		for(uint y=0; y<rot_n.height; ++y)
-		{
-			uint ind		= y * rot_n.width + x;
-			hcFloat phi 	= x * 360.0/rot_n.width;
-			bool exp		= (carLong < 180.0 && phi > carLong + 180.0) || (carLong > 180.0 && phi < carLong - 180.0);
-
-			rot_daily(x,y) 	= exp ? rot_pm(x,y) : rot_n(x,y);
-		}
-
-	char fn_out[1000];
-	sprintf(fn_out, "%s/verdaily%u%s%u%s%u.fits", folder, date.year, date.month+1 < 10 ? "0" : "", date.month+1, date.dom+1 < 10 ? "0" : "", date.dom+1);
-
-	rot_daily.save(fn_out);
-
-	return true;
-}
 
 //------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------
@@ -141,6 +87,35 @@ bool SynopticInfo::operator<(const SynopticInfo &other)
 	return !(operator>(other) || operator==(other));
 }
 
+bool SynopticInfo::exportBinary(ofstream &stream)
+{
+	bool retval 		= true;
+	uint sizeoffloat	= sizeof(hcFloat);
+	stream.write(reinterpret_cast<char*>(&sizeoffloat),	sizeof(uint));
+	retval &= crInfo::exportBinary(stream);
+	stream.write(reinterpret_cast<char*>(&instrument),	sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&dailyID),		sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&sinLatFormat),sizeof(bool));
+	stream.write(reinterpret_cast<char*>(&maxSinLat),	sizeoffloat);
+	return retval;
+}
+
+bool SynopticInfo::importBinary(ifstream &stream)
+{
+	bool retval 		= true;
+	uint sizeoffloat	= 0;
+	stream.read(reinterpret_cast<char*>(&sizeoffloat),	sizeof(uint));
+	if(sizeoffloat != 4 && sizeoffloat != 8) return false;
+	char *tempFloat		= sizeoffloat == 4 ? reinterpret_cast<char*>(new float()): reinterpret_cast<char*>(new double());
+	retval &= crInfo::importBinary(stream);
+	stream.read(reinterpret_cast<char*>(&instrument),	sizeof(uint));
+	stream.read(reinterpret_cast<char*>(&dailyID),		sizeof(uint));
+	stream.read(reinterpret_cast<char*>(&sinLatFormat),	sizeof(bool));
+	stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); maxSinLat = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
+	delete tempFloat;
+	return retval;
+}
+
 void SynopticInfo::initNULL()
 {
 	dailyID				= 0;
@@ -166,15 +141,17 @@ void SynopticInfo::init(originID id, hcFloat maxSinLat, uint CRnum, uint dailyID
 	((crInfo*)this)->init(CRnum);
 }
 
-void SynopticInfo::dump() const
+void SynopticInfo::dump(uint indent) const
 {
-	cout << "Dumping SynopticInfo:\n";
-	crInfo::dump();
+	stringstream ind;
+	if(indent > 0) ind << setw(indent) << setfill(' ') << " ";
+	cout << ind.str() << "Dumping SynopticInfo:\n";fflush(stdout);
+	crInfo::dump(indent+1);
 	cout << left;
-	cout << setw(20) << setfill(' ') << "Instrument:" 	<< getStringFromOriginID(instrument) 	<< "\n";
-	cout << setw(20) << setfill(' ') << "SinLatFormat:" << (sinLatFormat ? "true" : "false")	<< "\n";
-	cout << setw(20) << setfill(' ') << "maxSinLat:" 	<< maxSinLat							<< "\n";
-	cout << setw(20) << setfill(' ') << "DailyID:" 		<< dailyID								<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ') << "Instrument:" 		<< getStringFromOriginID(instrument) 	<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ') << "SinLatFormat:" 	<< (sinLatFormat ? "true" : "false")	<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ') << "maxSinLat:" 		<< maxSinLat							<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ') << "DailyID:" 		<< dailyID								<< "\n";
 }
 
 
@@ -218,7 +195,6 @@ void SynPhotMagfield::initNULL()
 
 bool SynPhotMagfield::load(const string &filename)
 {
-	//cout << __FILE__ << ":" << __LINE__ << ": load\n";fflush(stdout);
 	bool retval = false;
 	originID id = getOriginIDfromPhotFilename(filename);
 
@@ -238,17 +214,17 @@ bool SynPhotMagfield::load(const string &filename)
 		strncpy(temp, filename.data() + occ + 1, 4);
 		temp[4] = '\0';
 
-		if (!strcmp(temp, "FITS"))		retval = openWSOconverted(filename);
-		else							retval = openWSO(filename);
+		if (!strcmp(temp, "FITS"))		retval = openWSOconverted(	filename);
+		else							retval = openWSO(			filename);
 	}
-	else if(id == ORIGIN_NSOGONG)		retval = openNSOGONG(filename);
-	else if(id == ORIGIN_NSOKPVT)		retval = openKPVT(filename);
-	else if(id == ORIGIN_SOHOMDI)		retval = openSOHOMDI(filename);
-	else if(id == ORIGIN_SOHOMDI_DAILY)	retval = openSOHOMDI_DAILY(filename);
-	else if(id == ORIGIN_VER_DAILY)		retval = openVerDAILY(filename);
-	else if(id == ORIGIN_SDOHMI)		retval = openSDOHMI(filename);
-	else if(id == ORIGIN_OWN)			retval = openOwnFormat(filename);
-	else	cerr << __FILE__ << ":" << __LINE__ << ": File could not be opened. Unknown instrument.Filename: '" << filename << "'\n\n";
+	else if(id == ORIGIN_NSOGONG)		retval = openNSOGONG(		filename);
+	else if(id == ORIGIN_NSOKPVT)		retval = openKPVT(			filename);
+	else if(id == ORIGIN_SOHOMDI)		retval = openSOHOMDI(		filename);
+	else if(id == ORIGIN_SOHOMDI_DAILY)	retval = openSOHOMDI_DAILY(	filename);
+	else if(id == ORIGIN_VER_DAILY)		retval = openVerDAILY(		filename);
+	else if(id == ORIGIN_SDOHMI)		retval = openSDOHMI(		filename);
+	else if(id == ORIGIN_OWN)			retval = openOwnFormat(		filename);
+	else	cerr << __FILE__ << ":" << __LINE__ << ": File could not be opened. Unknown instrument. Filename: '" << filename << "'\n\n";
 
 	return retval;
 }
@@ -317,21 +293,21 @@ bool SynPhotMagfield::openKPVT(const string &filename)
 
 	if (!hcImageFITS::load(filename) || !boost::regex_match(filename, pattern))
 	{
-		printf("ERROR! MagCRHandler::openKPVT: File %s could not be opened!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  File '" << filename << "' could not be opened.\n";
 		return false;
 	}
 
 	hcFloat bscale = 0.0;
 	if (!readKeyFloat("BSCALE", bscale))
 	{
-		printf("ERROR! MagCRHandler::openKPVT: KPVT files do have a BSCALE-field.\nThe file you provided (%s) does not!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  KPVT files do have a BSCALE-field.\nThe file you provided (" << filename << ") does not.\n";
 		return false;
 	}
 
 	hcFloat bzero = 0.0;
 	if (!readKeyFloat("BZERO", bzero))
 	{
-		printf("ERROR! MagCRHandler::openKPVT: KPVT files do have a BZERO-field.\nThe file you provided (%s) does not!\n", filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  KPVT files do have a BZERO-field.\nThe file you provided (" << filename << ") does not.\n";
 		return false;
 	}
 
@@ -374,7 +350,7 @@ bool SynPhotMagfield::openWSOconverted(const string &filename) {
 
 	if (!hcImageFITS::load(filename) || !boost::regex_match(filename, re))
 	{
-		printf("ERROR! magCRHandler::openWSOconverted: File %s could not be opened!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  File '" << filename << "' cannot be opened.\n";
 		return false;
 	}
 
@@ -397,14 +373,14 @@ bool SynPhotMagfield::openSOHOMDI(const string &filename)
 
 	if (!hcImageFITS::load(filename) || !boost::regex_match(filename, re))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI: File %s could not be opened!\n", filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  File '" << filename << "' cannot be opened.\n";
 		return false;
 	}
 
 	hcFloat dSinLat = 0.0;
 	if (!readKeyFloat("CDELT2", dSinLat))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI: SOHOMDI files do have a CDELT2 field.\nThe file you provided (%s) does not!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  SOHOMDI files do have a CDELT2 field.\nThe file you provided (" << filename << ") does not.\n";
 		return false;
 	}
 
@@ -413,12 +389,12 @@ bool SynPhotMagfield::openSOHOMDI(const string &filename)
 
 	if (!readKeyFloat("BSCALE", bscale))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI: BSCALE field not found in file '%s'!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  BSCALE field not found in file '" << filename << "'.\n";
 		return false;
 	}
 	if (!readKeyFloat("BZERO", bzero))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI: BZERO field not found in file '%s'!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  BZERO field not found in file '" << filename << "'!\n";
 		return false;
 	}
 
@@ -444,7 +420,7 @@ bool SynPhotMagfield::openSOHOMDI_DAILY(const string &filename)
 
 	if (!hcImageFITS::load(filename) || !boost::regex_match(filename, re))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI_DAILY: File %s could not be opened!\n", filename);
+		cerr << __FILE__ << ":" << __LINE__ << ": openSOHOMDI_DAILY: File '" << filename << "' could not be opened!\n";
 		return false;
 	}
 
@@ -458,14 +434,14 @@ bool SynPhotMagfield::openSOHOMDI_DAILY(const string &filename)
 	hcFloat lonLast	= 0.0;
 	if (!readKeyFloat("LON_LAST", lonLast))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI_DAILY(): SOHOMDI files do have a LON_LAST field.\nThe file you provided (%s) does not!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  SOHOMDI files do have a LON_LAST field.\nThe file you provided (" << filename << ") does not!\n";
 		return false;
 	}
 
 	hcFloat lonFirst	= 0.0;
 	if (!readKeyFloat("LON_FRST", lonFirst))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI_DAILY(): SOHOMDI files do have a LON_FRST field.\nThe file you provided (%s) does not!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  SOHOMDI files do have a LON_FRST field.\nThe file you provided (" << filename << ") does not!\n";
 		return false;
 	}
 
@@ -494,14 +470,14 @@ bool SynPhotMagfield::openNSOGONG(const string &filename)
 
 	if (!hcImageFITS::load(filename) || !boost::regex_match(filename, re))
 	{
-		printf("ERROR! MagCRHandler::openNSOGONG: File %s could not be opened!\n", filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  File '" << filename << "' cannot not be opened!\n";
 		return false;
 	}
 
 	hcFloat dSinLat = 0.0;
 	if (!readKeyFloat("CDELT2", dSinLat))
 	{
-		printf("ERROR! MagCRHandler::openSOHOMDI(): SOHOMDI files do have a CDELT2 field.\nThe file you provided (%s) does not!\n",	filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  SOHOMDI files do have a CDELT2 field.\nThe file you provided (" << filename << ") does not!\n";
 		return false;
 	}
 
@@ -520,23 +496,22 @@ bool SynPhotMagfield::openNSOGONG(const string &filename)
 
 bool SynPhotMagfield::openSDOHMI(const string &filename)
 {
-	//boost::regex re(".*hmi\\.synoptic_ml_720s\\.([0-9]{4})\\.synopml\\.fits", boost::regex::icase);
 	boost::regex re(".*hmi\\.synoptic_ml.*\\.([0-9]{4}).*\\.fits$", boost::regex::icase);	// TODO: put regex in filenames.cpp
 
 	if (!hcImageFITS::load(filename) || !boost::regex_match(filename, re))
 	{
-		printf("ERROR! MagCRHandler::openSDOHMI: File %s could not be opened!\n", filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  File '" << filename << "' cannot not be opened!\n";
 		return false;
 	}
 
 	boost::smatch what;
 	boost::regex_search(filename, what, re);
-	uint CRnum = boost::lexical_cast<int>(what[1]);
-
+	uint CRnum 		= boost::lexical_cast<int>(what[1]);
 	hcFloat dSinLat = 0.0;
+
 	if (!readKeyFloat("CDELT2", dSinLat))
 	{
-		printf("ERROR! MagCRHandler::openSDOHMI(): openSDOHMI files do have a CDELT2 field.\nThe file you provided (%s) does not!\n", filename);
+		cerr << __FILE__ << ":" << __LINE__ << ":  openSDOHMI files do have a CDELT2 field.\nThe file you provided (" << filename << ") does not!\n";
 		return false;
 	}
 
@@ -544,7 +519,6 @@ bool SynPhotMagfield::openSDOHMI(const string &filename)
 
 	synInfo.init(ORIGIN_SDOHMI, maxSinLat, CRnum, 0);
 
-	//cropPolesFromImage(50);
 	cropPolesFromImage(15);
 
 	return true;
@@ -556,7 +530,7 @@ bool SynPhotMagfield::openVerDAILY(const string &filename)
 
 	if (!hcImageFITS::load(filename) || !boost::regex_match(filename, re))
 	{
-		printf("ERROR! MagCRHandler::openVerDAILY: File %s could not be opened!\n", filename);
+		cerr << __FILE__ << ":" << __LINE__ << ": File '" << filename << "' cannot not be opened.\n";
 		return false;
 	}
 
@@ -577,8 +551,6 @@ bool SynPhotMagfield::openVerDAILY(const string &filename)
 
 	hcDate date(year, month-1, day-1, 12, 0, 0, HC_UTC, HC_GREGORIAN);
 	uint CRnum = date.getCarringtonRotationNum();
-
-	printf("year: %u, month: %u, day: %u, CRnum: %u\n", year, month, day, CRnum);
 
 	uint dailyNum	= year * 10000 + month * 100 + day;
 
@@ -635,13 +607,13 @@ bool SynPhotMagfield::createLOSfromGrid(SphericalGrid &grid)
 			uint indG		= grid.getIndex(0, t, p);
 			Vec3D gridPos	= grid.getPos(indG, false);
 			Vec3D mag		= grid.getB(indG, false);
-			hcFloat sign	= mag[0] > 0.0 ? 1.0 : -1.0;
+			//hcFloat sign	= mag[0] > 0.0 ? 1.0 : -1.0;
 			mag 			= mag.convVecSpher2Cart(pos);
 			Vec3D proj		= rotMat * mag;
 			uint ind		= t * width + p;
 			data[ind]		= -proj[2];
 
-			hcFloat Blos	= sin(theta) * mag.length() * sign;
+			//hcFloat Blos	= sin(theta) * mag.length() * sign;
 		}
 	}
 	// TODO
@@ -774,11 +746,10 @@ void SynPhotMagfield::cropPolesFromImage(uint numPixelsToCrop)
 {
 	if (2 * numPixelsToCrop >= height)
 	{
-		printf("ERROR! MgCRHandler::cropPolesFromImage: Number of pixels to omit bigger than image itself! (numPixelsToCrop: %u, height: %li)\n", numPixelsToCrop, height);
+		cerr << __FILE__ << ":" << __LINE__ << ": Number of pixels to omit (" << numPixelsToCrop << ") bigger than image itself (" << height << ")!\n";
 		return;
 	}
 
-	//hcFloat dSinLat 	= 2.0 / (height - 1);
 	hcFloat dSinLat 	= 2*synInfo.maxSinLat / (height - 1);
 	hcFloat *imageNew 	= new hcFloat[width * (height - 2*numPixelsToCrop)];
 
@@ -805,7 +776,7 @@ bool SynPhotMagfield::convertWSOtxtToWSOfits(const string &infile, const string 
 	ifstream in(infile);
 	if (!in.is_open())
 	{
-		printf("ERROR! MagCRHandler::convertWSOtxtToWSOfits: File %s exists, but cannot be opended!\n",	infile);
+		cerr << __FILE__ << "/" << __LINE__ << ": File '" <<  infile <<"' exists, but cannot be opended!\n";
 		return false;
 	}
 
@@ -850,7 +821,7 @@ bool SynPhotMagfield::convertWSOtxtToWSOfits(const string &infile, const string 
 			{
 				++j;
 				//*							ignore last column
-				if (j == nphi)
+				if (j == (int)nphi)
 				{
 					breaker = true;
 					break;
@@ -987,5 +958,6 @@ void SynPhotMagfield::dump() const
 {
 	cout << "Dumping SynPhotMagfield:\n";
 	synInfo.dump();
-	printf("width:\t\t%lu\nheight:\t\t%lu\n\n", width, height);
+	cout << "width:  " << width << "\n";
+	cout << "height: " << height << "\n";
 }

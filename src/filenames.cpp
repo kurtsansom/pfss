@@ -12,11 +12,23 @@
 using namespace boost;
 using namespace boost::filesystem;
 
+extern string dirConfig;
+extern string dirData;
+
 //				  CR        inst  group 	model      			rss        							method  					ell|orderSHC						nr       nt       np
 regex pat_pfssSolutionInfo("([0-9]{4})_(.*)_(.*)_((?:PFSS)|(?:CSSS))([0-9]{1}\\.[0-9]{2})_((?:GridEll)|(?:GridSph)|(?:SHC))((?:[0-9]{1}\\.[0-9]{2})|(?:[0-9]{2}))?_([0-9]*)x([0-9]*)x([0-9]*)_", regex::icase);
 
 regex pat_magMap("((?:LinLat)|(?:SinLat))Map([0-9]{1}\\.[0-9]{2})((?:comp)|(?:world))_res([0-9]*)x([0-9]*)", regex::icase);
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// configuration
+// ---------------------------------------------------------------------------------------------------------------
+
+string getFilename_crlist()
+{
+	return dirConfig + "/crlist";
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // directories
@@ -50,9 +62,7 @@ string getFilename_pfssSolutionInfo(const PFSSsolutionInfo &info)
     retval << getStringFromGroupID(info.group)			<< "_";
     retval << getStringFromModelID(info.model) 			<< fixed << info.rss/r_sol 		<< "_";
     retval << getStringFromMethodID(info.method);
-    //retval.precision(4);
     if(info.method==METH_ELLIPTICAL)	retval 			<< fixed 					<< info.ell;
-    //retval.precision(2);
     if(info.method==METH_SHC)			retval 			<< setw(2) << setfill('0') 	<< info.orderSHC;
     retval << "_";
     retval << info.numR << "x" << info.numTheta << "x" << info.numPhi 	<< "_";
@@ -91,9 +101,10 @@ string getFilename_harmonicCoeff(const PFSSsolutionInfo &info)
 
 string getFilename_photMagfield(const PFSSsolutionInfo &info)
 {
-	stringstream retval;
-	retval << getFilename_pfssSolutionInfo(info) << "synPhotMagfield.fits";
-	return retval.str();
+	//stringstream retval;
+	//retval << getFilename_pfssSolutionInfo(info) << "synPhotMagfield.fits";
+	//return retval.str();
+	return getFilename_pfssSolutionInfo(info) + "synPhotMagfield.fits";
 }
 
 string getFilename_magMapping(	const PFSSsolutionInfo &info, hcFloat height,
@@ -236,11 +247,13 @@ string getFilenameAnalysisSWspeed(	string dir, spacecraftID scid, uint crStart, 
 	return fn.str();
 }
 
-string getFilename_superconfig(const string &path)
+string getFilename_superconfig()
 {
-	stringstream retval;
-	retval << path << "/superconfig.cfg";
-	return retval.str();
+	//stringstream retval;
+	//retval << path << "/superconfig.cfg";
+	//return retval.str();
+	string retval = dirData + "/superconfig.cfg";
+	return retval;
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
@@ -517,4 +530,17 @@ bool isFileType_magMappingFootImg(const string &filename)
 	if(regex_search(filename.data(), what, pattern)) return true;
 
 	return false;
+}
+
+string getHeader_main()
+{
+	stringstream retval;
+	hcDate now;	now.setFromSystemTime();
+
+	retval << "# This file was created using the pfss program developed at IEAP - Kiel University.\n";
+	retval << "# Author                      Martin A. Kruse (kruse@physik.uni-kiel.de)\n";
+	retval << "# Major Version number        " << PFSS_VER_MAJ 										<< "\n";
+	retval << "# Minor Version number        " << PFSS_VER_MIN 										<< "\n";
+	retval << "# File generated              " << now.toString() 									<< "\n";
+	return retval.str();
 }

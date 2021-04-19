@@ -28,8 +28,8 @@ public:
     uint numSamples;    /*!< \brief number of points where the magline has been sampled             				*/
     Vec3D *magdata;     /*!< \brief array of magnetic field strengths where magline has been sampled (spherical) 	*/
     Vec3D *posdata;     /*!< \brief array of positions where magline has been sampled (spherical)   				*/
-    hcFloat *curvature;	/*!< \brief unsigned curvature of the magline at all sample points							*/
-    char flag;			/*!< \brief 0=invalid, 1=closed, 2=positive, 3=negative, 4=man.+, 5=man.-					*/
+    //hcFloat *curvature;	/*!< \brief unsigned curvature of the magline at all sample points							*/
+    //char flag;			/*!< \brief 0=invalid, 1=closed, 2=positive, 3=negative, 4=man.+, 5=man.-					*/
 
     bool closed;        /*!< \brief does the magline connect two points on the phtotosphere?        				*/
     bool valid;         /*!< \brief are there valid values in magdata and posdata?                  				*/
@@ -45,7 +45,7 @@ public:
     void initNULL();
     void clear();
 
-    bool computeCurvature();
+    //bool computeCurvature();
 
     Vec3D getMagVec(uint num);
     	/*!< \brief returns magnetic vector at given numerical position in array										*/
@@ -59,7 +59,7 @@ public:
     int getAllValuesAtHeight(hcFloat height, Vec3D *posData, Vec3D *magData);
     	/*!< \brief returns number of positions where this maglines pierces through a specific height					*/
 
-    bool getCurvatureAtHeight(hcFloat height, hcFloat &curvature);
+    //bool getCurvatureAtHeight(hcFloat height, hcFloat &curvature);
     	/*!< \brief (linearily) interpolates curvature values at height													*/
 
     unsigned char createMaglineThroughPos(	SphericalGrid &grid, const Vec3D &posParam,
@@ -72,21 +72,19 @@ public:
     bool isInSameFluxtubeAs(const Magline &other);
         /*!< \brief calls lowerDistLTupperDist, this criterion is just sufficient                                       */
 
-    bool exportBinary(char **array);
-        /*!< \brief dumps instance into *array                                                                          */
+    bool exportBinary(std::ofstream &stream);
+        /*!< \brief dumps instance into stream                                                                          */
 
-    bool importBinary(char *array);
-        /*!< \brief imports instance from array                                                                         */
+    bool importBinary(std::ifstream &stream);
+        /*!< \brief imports instance from stream                                                                        */
 
     static void initStaticMembers();
+    	/*!< \brief initialize static member variables																	*/
 
     void dump() const;
+    	/*!< \brief dump data structure to screen																		*/
 
 };
-
-/*! \brief finds (unfortunately not the nearest) boundary intersection of some magline at pos
- *
- */
 
 bool createMaglineOnTheFly(Vec3D &pos, const SphericalGrid &grid,
 		unsigned char &error, bool createMagline,
@@ -118,8 +116,7 @@ bool createMaglineOnTheFly_RKF23(Vec3D &pos, const SphericalGrid &grid,
 		Vec3D *poslines, Vec3D *maglines, uint *numSamples, bool direction,
 		bool debug);
 
-/*! \brief requests the magnetic field at next position and handles the different errors that may occur doing so
- */
-bool maglineTracingHandler(Vec3D &B, Vec3D &pos, Vec3D &pos_cart, Vec3D pos_old, unsigned char &error, const SphericalGrid &grid, bool debug=false);
+bool maglineTracingHandler(Vec3D &B, Vec3D &pos, Vec3D &pos_cart, Vec3D pos_old, unsigned char &error, const SphericalGrid &grid);
+	/*! \brief requests the magnetic field at next position and handles the different errors that may occur doing so  */
 
 #endif

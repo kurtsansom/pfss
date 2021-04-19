@@ -42,7 +42,7 @@ public:
     SphericalGrid(const SphericalGrid &grid);				/*!< \brief cpy constructor												*/
     virtual ~SphericalGrid();								/*!< \brief destructor													*/
 
-    virtual SphericalGrid &operator=(const SphericalGrid &other);	/*!< \brief assignment operator											*/
+    virtual SphericalGrid &operator=(const SphericalGrid &other);	/*!< \brief assignment operator									*/
 
     virtual void initNULL();
     virtual void initNULL_CPU();
@@ -64,7 +64,8 @@ public:
     void getScalingFactors();
     	/*!< \brief computes scaling factors to be used by the Laplace solver														*/
 
-    void clearValues();						/*!< \brief clears the values (B_r, relError, temp, etc.) not the positions (pos)		*/
+    void clearValues();
+    	/*!< \brief clears the values (B_r, relError, temp, etc.) not the positions (pos)											*/
 
 #ifdef CUDA
 
@@ -106,6 +107,9 @@ public:
 
 	virtual void dumpCoords(uint fixed = 0, bool ellipticCoords = false) const;
 
+	void iterateElliptic_gridPoint(uint i, uint j, uint k);
+		/*!< \brief solve Laplace equation on a single grid point according to the elliptic computation scheme						*/
+
 #ifdef __NVCC__
     __host__ __device__
 #endif
@@ -136,26 +140,32 @@ public:
 #ifdef __NVCC__
     __host__ __device__
 #endif
-	hcFloat* getPsiArray() const;													/*!< \brief scalar potential      */
+	hcFloat* getPsiArray() const;
+    	/*!< \brief scalar potential      																							*/
 
-	hcFloat* getRelErrorArray() const;												/*!< \brief relative error compered to preciding step           								*/
+	hcFloat* getRelErrorArray() const;
+		/*!< \brief relative error compered to preciding step           															*/
 
 #ifdef __NVCC__
     __host__ __device__
 #endif
-	Vec3D* getPosArray() const;														/*!< \brief position in world coordinates (spherical)           								*/
+	Vec3D* getPosArray() const;
+    	/*!< \brief position in world coordinates (spherical)           															*/
 
-    Vec3D* getBArray() const;														/*!< \brief magnetic field components (spherical)           								*/
+    Vec3D* getBArray() const;
+    	/*!< \brief magnetic field components (spherical)           																*/
 
-    hcFloat* getTempArray() const;													/*!< \brief temp value for computations on spec. grid point           								*/
+    hcFloat* getTempArray() const;
+    	/*!< \brief temp value for computations on spec. grid point           														*/
 
-    PFSSsolution_SHC *harmSolution;	/*!< \brief PFSS solution via spherical harmonic function approach, temporary testing variable	*/
+    PFSSsolution_SHC *harmSolution;
+    	/*!< \brief PFSS solution via spherical harmonic function approach, temporary testing variable								*/
 
 #ifdef __NVCC__
     __host__ __device__ __forceinline__
 #endif
     float getStepSize() const;
-        /*!< \brief returns the optimal step size for following values (e.g., Magnetic field lines) throughout the grid     */
+        /*!< \brief returns the optimal step size for following values (e.g., Magnetic field lines) throughout the grid     		*/
 
 #ifdef __NVCC__
     __host__ __device__

@@ -18,6 +18,16 @@ void checkCUDAerror(const char *msg)
     }
 }
 
+void checkCUDAerror(const string &file, const int &line)
+{
+    cudaError_t err = cudaGetLastError();
+    if(cudaSuccess != err)
+    {
+    	cerr << file << line << ": CUDA error: " <<  cudaGetErrorString(err);
+        exit(EXIT_FAILURE);
+    }
+}
+
 bool isInside_elliptic(uint index, double a2, double b2, double c2, double *d_r, double *d_theta, double *d_phi, \
                                   double *d_x, double *d_y, double *d_z){
 

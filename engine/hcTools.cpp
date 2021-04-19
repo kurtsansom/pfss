@@ -7,27 +7,57 @@
 #include "engine/math/hcCoordTransform.h"
 #endif
 
-uint char2RGBA8(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha){
+string toStr(hcFloat num)
+{
+	stringstream ss;
+	ss << num;
+	return ss.str();
+}
 
+string genStreamMessage(const string &file, const int &line, const string &message)
+{
+	hcDate now;
+	string pre = now.getTOD() + "|" + file + ":" + to_string(line);
+	stringstream ss;
+	ss << left; ss << setfill(' ') << setw(41);
+	ss << pre << "| " << message << "\n";
+	return ss.str();
+}
+
+void printStdOutMess(const string &file, const int &line, const string &message)
+{
+	string mess = genStreamMessage(file, line, message);
+	cout << mess;
+}
+
+void printErrMess(const string &file, const int &line, const string &message)
+{
+	string mess = genStreamMessage(file, line, message);
+	cout << mess;
+}
+
+
+uint char2RGBA8(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha)
+{
     return(red  + green * 0x00000100  + blue * 0x00010000 + alpha * 0x01000000);
 }
 
-void printHexCodedInt(uint in){
-
+void printHexCodedInt(uint in)
+{
     int mask = 0xF;
     printf("%x%x%x%x%x%x%x%x\n", (in>>28)&mask, (in>>24)&mask, (in>>20)&mask, (in>>16)&mask, (in>>12)&mask, (in>>8)&mask, (in>>4)&mask, (in>>0)&mask);
 }
 
-void RGBA82char(uint color, unsigned char &red, unsigned char &green, unsigned char &blue, unsigned char &alpha){
-
+void RGBA82char(uint color, unsigned char &red, unsigned char &green, unsigned char &blue, unsigned char &alpha)
+{
     red   =  color & 0x000000FF;
     green = (color & 0x0000FF00) >> 8;
     blue  = (color & 0x00FF0000) >> 16;
     alpha = (color & 0xFF000000) >> 24;
 }
 
-float posTransform(float oldMinValue, float oldMaxValue, float newMinValue, float newMaxValue, float oldPos){
-
+float posTransform(float oldMinValue, float oldMaxValue, float newMinValue, float newMaxValue, float oldPos)
+{
     float scalefactor = (newMaxValue - newMinValue) / (oldMaxValue - oldMinValue);
     return(scalefactor * (oldPos - oldMinValue) + newMinValue);
 }

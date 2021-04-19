@@ -21,6 +21,8 @@ namespace fs = boost::filesystem;
 using namespace boost;
 using namespace std;
 
+extern string dirData;
+
 //------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------
@@ -56,9 +58,7 @@ PFSSsolution &PFSSsolution::operator=(const PFSSsolution &other)
 }
 
 void PFSSsolution::initNULL()
-{
-	outDir = "";
-}
+{}
 
 void PFSSsolution::clear()
 {
@@ -70,12 +70,19 @@ void PFSSsolution::init()
 	clear();
 }
 
+bool PFSSsolution::isDirSet()
+{
+	if(dirData.length() == 0)
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": output directory has not been set.\n";
+		return false;
+	}
+	return true;
+}
+
 string PFSSsolution::getFilenamePhotMagfield()
 {
-	stringstream retval;
-	retval << outDir << "/" << info.CRnum << "/";
-	retval << getFilename_photMagfield(info);
-	return retval.str();
+	return dirData + "/" + to_string(info.CRnum) + "/" + getFilename_photMagfield(info);
 }
 
 bool PFSSsolution::loadPhotBoundary(const string &filename, uint seed, uint scaleMethod)
@@ -108,7 +115,6 @@ bool PFSSsolution::loadPhotBoundary(const string &filename, uint seed, uint scal
  *  (cfg file for information on this specific solution and one entry in super-cfg
  *  so that the program knows that there is a solution for this specific Carrington rotation
  *  and instrument)
- *
  */
 bool PFSSsolution::save()
 {
@@ -118,11 +124,7 @@ bool PFSSsolution::save()
         return false;
     }
 
-    if(outDir.length()==0)
-    {
-    	cerr << __FILE__ << ":" << __LINE__ << ": Output directory has not been set\n";fflush(stderr);
-    	return false;
-    }
+    if(!isDirSet()) return false;
 
     if(info.CRnum < 1600)
     {
@@ -164,9 +166,6 @@ bool PFSSsolution::save()
 	config << "upperR " 			<< solver.grid->upperR 						<< "\n";
 	config << "geometricFactor " 	<< solver.grid->geometricFactor 			<< "\n";
 	config << "ellipticity " 		<< a 										<< "\n";
-	config << "outputDirectory " 	<< outDir 									<< "\n";
-	config << "inputFilename " 		<< photBoundary.filename 					<< "\n";
-	config << "gridFilename " 		<< gridFilename.data() 						<< "\n";
 	config << "sizeofFloat " 		<< info.sizeofFloat 						<< "\n";
 
     config.close();
@@ -182,7 +181,7 @@ bool PFSSsolution::load(const string &cfgFN)
 {
     if(!checkFileEx(cfgFN, "PFSSsolution::loadPrecomputed"))
     {
-        cerr << "ERROR! PFSSsolution::loadPrecomputed: File\n'" << cfgFN <<"'\ndoes not exist!\n";
+        cerr << __FILE__ << ":" << __LINE__ << ": File '" << cfgFN <<"' does not exist.\n";
         return false;
     }
 
@@ -204,7 +203,6 @@ bool PFSSsolution::load(const string &cfgFN)
     	stringstream stream(line);
     	stream >> option >> argument;
     	if(option == "produced_at")			timestamp			= argument;
-    	if(option == "outputDirectory")		outDir				= argument;
         if(option == "comptime")        	computationTime 	= (uint)atoi(argument.data());
 		if(option == "maxSinLat")           maxSinLat 			= atof(argument.data());
         if(option == "sizeofFloat")			sizeofFloat 		= (uint)atoi(argument.data());
@@ -220,25 +218,12 @@ bool PFSSsolution::load(const string &cfgFN)
     SphericalGrid &gr 		= *solver.grid;
     EllipticalGrid &egr 	= *(dynamic_cast<EllipticalGrid*>(&gr));
     bool isEll				= gr.isElliptical();
-    //hcFloat ell				= info.ell;
-    //bool prolate			= isEll ? egr.prolate : false;
-
     boundaryFilename 		= getFilenamePhotMagfield();
     gridFilename			= getFilenameGrid();
 
-    if(!photBoundary.load(boundaryFilename.data()))
-	{
-		cerr << __FILE__ << ":" << __LINE__ << " File\n\t'" << boundaryFilename << "'\n\tcannot not be loaded into SynPhotMagfield object\n";
-		fflush(stderr);
-		return false;
-	}
-
-    if(!solver.grid->importEntireGrid(gridFilename.data())) //TODO: this does not load maxsinlat and doesnt init members like scaling factors
-	{
-    	cerr << __FILE__ << ":" << __LINE__ << " File '\n" << gridFilename << "'\ncannot not be imported to grid.\n";
-    	fflush(stderr);
-		return false;
-	}
+    if(!photBoundary.load(boundaryFilename.data()))			return false;
+    //TODO: this does not load maxsinlat and doesnt init members like scaling factors
+    if(!solver.grid->importEntireGrid(gridFilename.data())) return false;
 
     solver.solutionComputed = true;
     return true;
@@ -252,19 +237,7 @@ bool PFSSsolution::computeKielSHC(const string &filename, uint order, hcFloat r_
 		return false;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		cerr << __FILE__ << ":" << __LINE__ << " output directory has not been set\n";
-		return false;
-	}
-
-	cout << "--------------------------------------------------------------------\n";
-	cout << "-- PFSS::computeKielSHC\n";
-	cout << "-- order:     " << order 		<< "\n";
-	cout << "-- r_ss:      " << r_ss / r_sol<< " r_sol\n";
-	cout << "-- commpResR: " << compResR 	<< "\n";
-	cout << "--------------------------------------------------------------------\n\n";
-	fflush(stdout);
+	if(!isDirSet()) return false;
 
 	SynopticInfo synInf;
 	uint numT, numP;
@@ -278,19 +251,18 @@ bool PFSSsolution::computeKielSHC(const string &filename, uint order, hcFloat r_
 		return false;
 	}
 
-	stringstream coeffFN;
-	coeffFN << outDir << "/" << info.CRnum << "/" << getFilename_harmonicCoeff(info);
+	string coeffFN = dirData + "/" + to_string(info.CRnum) + "/" + getFilename_harmonicCoeff(info);
 
-	if(doesFileExist(coeffFN.str().data()))
+	if(doesFileExist(coeffFN))
 	{
-		cout << "PFSSSolution::computeKielSHC: file '" << coeffFN.str().data() << "' does already exist. Skip recomputation.\n";
+		printStdOutMess(__FILE__, __LINE__, "Solution '" + coeffFN + "' already exists, skip recomputation.");
 		return true;
 	}
 
 	PFSSsolution_SHC_sun coeffMagfield; // TODO: here you need to add r_ss to constructor
 	coeffMagfield.determineCoefficientsFromPhotMagfield(order, r_ss, photBoundary);
 	solver.solutionComputed = true;
-	coeffMagfield.exportCoefficients(coeffFN.str().data());
+	coeffMagfield.exportCoefficients(coeffFN.data());
 
 	for(uint r=0;r<solver.grid->numR;++r)
 		for(uint t=0;t<solver.grid->numTheta;++t)
@@ -302,8 +274,6 @@ bool PFSSsolution::computeKielSHC(const string &filename, uint order, hcFloat r_
 				coeffMagfield.eval(pos, result);
 				solver.grid->setB(ind, result);
 			}
-
-	//this->solver.grid->harmSolution = new PFSSsolution_SHC_sun(coeffMagfield); // TODO just testing
 	save();
 
 	return true;
@@ -317,11 +287,7 @@ bool PFSSsolution::computeKielGrid(const string &filename, const string &optiona
 		return false;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::computeSolution\n\t output directory has not been set!\n");
-		return false;
-	}
+	if(!isDirSet()) return false;
 
 	SynopticInfo synInf;
 	uint numT, numP;
@@ -338,12 +304,10 @@ bool PFSSsolution::computeKielGrid(const string &filename, const string &optiona
 
 	if(doesFileExist(gridFilename.data()))
 	{
-		cout << "PFSSsolution::computeKielGrid: Solution does already exist, skip recomputation. Filename:\n'" << gridFilename << "'\n\n";fflush(stdout);
-		if(load(cfgFilename.data()))	return true;
-		else	cout << "PFSSsolution::computeKielGrid: Solution does exist, but could not be loaded. Recompute it...\n";
+		printStdOutMess(__FILE__, __LINE__, "Solution '" + gridFilename + "' already exists, skip recomputation.");
+		return (load(cfgFilename.data()) ? true : false);
 	}
-
-	cout << "PFSSsolution::computeKielGrid: File\n'" << gridFilename << "'\ndoes not exist. Start computation!\n";fflush(stdout);
+	printStdOutMess(__FILE__, __LINE__,  "Solution '" + gridFilename + "'does not exist, start computation.");
 
 	hcDate start, end;
 	start.setFromSystemTime();
@@ -351,7 +315,6 @@ bool PFSSsolution::computeKielGrid(const string &filename, const string &optiona
 	int retval = solver.computeSolution(photBoundary);
 
 	if(retval<0)	return false;
-	//if(!solver.computeSolution(photBoundary))	return false;
 
 	end.setFromSystemTime();
 	info.dateComputed.setFromSystemTime();
@@ -371,11 +334,7 @@ void PFSSsolution::loadAndMapCSSS(	const char *boundaryFN, const char *coeffFN,
 		return;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::evalCSSS\n\t output directory has not been set!\n");
-		return;
-	}
+	if(!isDirSet()) return;
 
 	SynopticInfo synInf;
 	uint numT, numP;
@@ -385,38 +344,30 @@ void PFSSsolution::loadAndMapCSSS(	const char *boundaryFN, const char *coeffFN,
 
 	if(!loadPhotBoundary(boundaryFN))
 	{
-		printf("ERROR! PFSSsolution::evalCSSS: File %s could not be loaded! Continue with next file!\n", boundaryFN);
+		cerr << __FILE__ << ":" << __LINE__ << ": File '" << boundaryFN << "' cannot not be loaded. Continue with next file.\n";
 		return;
 	}
 	solver.grid->evaluateCSSS(coeffFN);
 	save();
 	multiMapSolution(imgThetaRes, imgPhiRes, mapIntermediateHeights, true, true);
 
-	printf("--------------------------------------------------------------------------\n");
-	printf("--- INFO: PFSSsolution::evalCSSS concluded. \n");
-	printf("--------------------------------------------------------------------------\n\n");
+	printStdOutMess(__FILE__, __LINE__, "evalCSSS concluded");
 }
 
 string PFSSsolution::getFilenameConfig()
 {
-	stringstream retval;
-	retval << outDir << "/" << info.CRnum << "/" << getFilename_pfssSolutionConfig(info);
-	return retval.str();
+	return dirData + "/" + to_string(info.CRnum) + "/" + getFilename_pfssSolutionConfig(info);
 }
 
 string PFSSsolution::getFilenameGrid()
 {
-	stringstream retval;
-	retval << outDir << "/" << info.CRnum << "/" << getFilename_pfssSolutionBin(info);
-	return retval.str();
+	return dirData + "/" + to_string(info.CRnum) + "/" + getFilename_pfssSolutionBin(info);
 }
-
-
 
 bool PFSSsolution::insertSolutionInSuperConfig()
 {
 	string cfgFN	= getFilenameConfig();
-	string superFN	= getFilename_superconfig(outDir);
+	string superFN	= getFilename_superconfig();
     char cfgFNin[1000];
 
     if(!createFolderStructureTo(superFN.data())) return false;
@@ -463,18 +414,13 @@ LaplaceSolver &PFSSsolution::getSolver()
  *  @param numTheta		number of grid points in latitudinal direction
  *  @param numPhi		number of grid points in azimuthal direction
  *  @param filename		filename for multimapping to be exported to
- *
  */
 bool PFSSsolution::mapHeightLevel(
 		hcFloat height, hcFloat *heights, uint numHeights,
 		hcFloat maxSinLat, uint numTheta, uint numPhi,
 		bool sinLatFormat, bool compCoords, bool exportASCII)
 {
-	if(outDir[0]=='\0')
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": Output directory has not been set!\n";
-		return false;
-	}
+	if(!isDirSet()) return false;
 
 	LaplaceSolver &solver = getSolver();
 
@@ -483,19 +429,19 @@ bool PFSSsolution::mapHeightLevel(
 	hcFloat maxSinLat_m		= numTheta==0 ? solver.grid->maxSinLat	: maxSinLat;
 	bool sinLatGrid			= numTheta==0 ? solver.grid->sinLatGrid	: sinLatFormat;
 
-	stringstream oDir, filenameAscii, filenameMap, filenameImg, filenameFootImg, filenameExpansion, filenameExpBitmap;
-	oDir 				<< outDir << "/" << info.CRnum << "/";
-	filenameAscii		<< oDir.str() << getFilename_magMappingASCII(			info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
-	filenameMap			<< oDir.str() << getFilename_magMappingBin(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
-	filenameImg			<< oDir.str() << getFilename_magMappingImg(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
-	filenameFootImg		<< oDir.str() << getFilename_magMappingFootImg(			info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
-	filenameExpansion	<< oDir.str() << getFilename_magMappingExpansion(		info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
-	filenameExpBitmap	<< oDir.str() << getFilename_magMappingExpansionBitmap(	info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
+	stringstream filenameAscii, filenameMap, filenameImg, filenameFootImg, filenameExpansion, filenameExpBitmap;
+	string oDir	= dirData + "/" + to_string(info.CRnum) + "/";
+	filenameAscii		<< oDir << getFilename_magMappingASCII(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
+	filenameMap			<< oDir << getFilename_magMappingBin(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
+	filenameImg			<< oDir << getFilename_magMappingImg(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
+	filenameFootImg		<< oDir << getFilename_magMappingFootImg(			info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
+	filenameExpansion	<< oDir << getFilename_magMappingExpansion(			info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
+	filenameExpBitmap	<< oDir << getFilename_magMappingExpansionBitmap(	info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
 
 	MagMapping map;
 	if(doesFileExist(filenameMap.str()))
 	{
-		cout << "PFSSsolution::mapHeightLevel map at height " << height << " does already exist, do not recompute.\n";
+		printStdOutMess(__FILE__, __LINE__, "map at height " + toStr(height) + " m does already exist, skip computation.");
 		if(!map.importBinary(filenameMap.str().data()))
 		{
 			cerr << __LINE__ << "/" << __FILE__ << ": file " << filenameMap.str() << " cannot be loaded.\n";
@@ -504,56 +450,25 @@ bool PFSSsolution::mapHeightLevel(
 	}
 	else
 	{
-		cout << "PFSSsolution::mapHeightLevel map at height " << height << " does not exist. Start computation.\n";
-		map.createAtHeight(solver, height, numTheta_m, numPhi_m, maxSinLat_m, sinLatGrid, compCoords);
+		printStdOutMess(__FILE__, __LINE__, "map at height " + toStr(height) + " m does not exist, start computation.");
+		map.createAtHeight(info, solver, height, numTheta_m, numPhi_m, maxSinLat_m, sinLatGrid, compCoords);
 		map.exportBinary(filenameMap.str().data());
 	}
 
-	exportASCII = true; //TODO away
 	if(exportASCII)	map.exportASCII(filenameAscii.str(), heights, numHeights, solver.grid->lowerR, solver.grid->upperR);
 
 	map.exportImage(filenameImg.str());
 	//map.exportFootpointImage(filenameFootImg);
 	map.exportExpansionFactorImage(solver.grid, filenameExpansion.str(), filenameExpBitmap.str());
 
-	/*
-	char filenameCurv[1000];
-	sprintf(filenameCurv,"%s/%sCurvatureAtHeight_%E_%sresolution%ux%u", dirname, info.idString, height, boundaryString, numTheta_m, numPhi_m);
-	if(fabs(height - solver.grid->upperR) / solver.grid->upperR < 0.01)
-		map.exportMultiCurvature(filenameCurv, height, heights, numHeights, solver.grid->lowerR, solver.grid->upperR);
-	else
-		map.exportCurvatureAtHeight(filenameCurv, height);//*/
-
-	//printf("PFSSsolution::mapHeightLevel: Mapping took %u seconds.\n", timediff);
-
     return true;
 }
 
-void PFSSsolution::getMagneticMappingFilename(const MagMapping &magmap, char *filename)
+string PFSSsolution::getMagneticMappingFilename(const MagMapping &magmap)
 {
-	if(outDir.length()==0)
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": Output directory has not been set\n";
-		return;
-	}
-
-	bool old = true;
-
-	string retval = getFilename_magMappingBin(	info, magmap.getHeight(), magmap.sinLatFormat, magmap.compCoords, magmap.numTheta, magmap.numPhi);
-	sprintf(filename, "%s/%u/%s", outDir, info.CRnum, retval.data());
-}
-
-bool PFSSsolution::setOutDir(const string &outDir)
-{
-	this->outDir = outDir;
-
-	if ((!fs::exists(outDir) && !createDir(outDir)) || !fs::is_directory(outDir))
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": Directory\n\t'" << outDir <<"'\n\tdoes not exist\n";fflush(stderr);
-		return false;
-	}
-
-	return true;
+	if(!isDirSet()) return "";
+	string retval = dirData + "/" + to_string(info.CRnum) + "/" + getFilename_magMappingBin(	info, magmap.getHeight(), magmap.sinLatFormat, magmap.compCoords, magmap.numTheta, magmap.numPhi);
+	return retval;
 }
 
 /*! creates magnetic field maps with footpoints at several heights and
@@ -561,13 +476,11 @@ bool PFSSsolution::setOutDir(const string &outDir)
  */
 bool PFSSsolution::multiMapSolution(uint numTheta, uint numPhi, bool computeIntermediateHeightLevels, bool sinLatFormat, bool compCoords)
 {
-	//uint numLevels		= solver.grid->numR;
 	uint numLevels		= 2;
 	hcFloat *heights 	= new hcFloat[numLevels];
 	hcFloat upperBound	= 2.5*r_sol;
 	hcFloat lowerBound	= r_sol;
 	hcFloat dr			= (upperBound - lowerBound) / (numLevels+1);
-
 
     for(uint i=0; i<numLevels; ++i)
     {
@@ -603,7 +516,7 @@ bool PFSSsolution::multiMapSolution(uint numTheta, uint numPhi, bool computeInte
 
     stop.setFromSystemTime();
     uint seconds = (stop-start)/hcDate::facSec;
-    cout << "PFSSsolution::multiMapSolution: took " << seconds << " s, time/pix: " << (hcFloat)seconds/(numTheta*numPhi) << "\n\n";
+    printStdOutMess(__FILE__, __LINE__, "took " + to_string(seconds) + " s to compute all heights.");
     return true;
 }
 
@@ -648,7 +561,7 @@ bool PFSSsolution::EUVanalysis(	euvID id, hcImageFITS &euv, bool EIT, hcFloat la
 	uint numY			= euv.height;
 
 	std::mt19937 rng(0);
-	LaplaceSolver &sol 	= solver;
+	//LaplaceSolver &sol 	= solver;
 
 	hcFloat maxLatitude	= (EIT ?  83 :  90) * 2*PI / 360;		// EIT images are linear in latitude as opposed to sine latitude
 	hcFloat minLatitude	= (EIT ? -83 : -90) * 2*PI / 360;
@@ -679,7 +592,7 @@ bool PFSSsolution::EUVanalysis(	euvID id, hcImageFITS &euv, bool EIT, hcFloat la
 			int x			= (uint)round(magl.posdata[0][2]*tfX);		// img position of footpoint
 			int y			= (int)round((lat-minLatitude)*tfY);
 
-			if(y>=0 && y<numY && lat >= -latThresh && lat <= latThresh && fabs(euv(x,y) - 1E-20)>1E-6)
+			if(y>=0 && y<(int)numY && lat >= -latThresh && lat <= latThresh && fabs(euv(x,y) - 1E-20)>1E-6)
 			{
 				//foot(x,y) 	= euv(x,y);
 				imgFoot(x,y)= euv(x,y);
@@ -752,13 +665,13 @@ bool PFSSsolution::EUVanalysis(	euvID id, hcImageFITS &euv, bool EIT, hcFloat la
 	imgClosed.save(fnForwClose.data());
 
 	SphericalGrid &gr = *solver.grid;
-
+	/*
 	hcFloat ellipticity = 1.0;
 	if(gr.isElliptical())
 	{
 		EllipticalGrid &egr = *(EllipticalGrid *)(&gr);
 		ellipticity			= egr.getEllA(egr.numR-1);
-	}
+	}//*/
 
 	retval 		= FootpointData(info, statsEUVCopy, statsImgFoot, statsImgOpen, statsImgClosed, statsRandMean,
 								mapBack.numTheta, mapBack.numPhi, gr.maxSinLat, latThresh,
@@ -808,8 +721,8 @@ void rescaleAnalysis(const string &fn)
 			coordsR[j*numPr+k]	= Vec2D(theta, phi);
 		}
 
-	hcFloat tfXo		= (numPo-1)	/ (2*PI);
-	hcFloat tfYo		= (numTo-1)	/ (maxLatitude - minLatitude);
+	//hcFloat tfXo		= (numPo-1)	/ (2*PI);
+	//hcFloat tfYo		= (numTo-1)	/ (maxLatitude - minLatitude);
 	hcFloat tfXr		= (numPr-1)	/ (2*PI);
 	hcFloat tfYr		= (numTr-1)	/ (maxLatitude - minLatitude);
 
@@ -971,14 +884,14 @@ bool PFSSsolution::footpointAnalysis(hcFloat latThresh)
 	LaplaceSolver &sol = solver;
 
 	hcFloat maxLatitude	= (EIT ?  83 :  90) * 2*PI / 360;				// EIT/AIA images are linear in latitude as opposed to sine latitude
-	hcFloat minLatitude	= (EIT ? -83 : -90) * 2*PI / 360;
+	//hcFloat minLatitude	= (EIT ? -83 : -90) * 2*PI / 360;
 
 	MagMapping map, mapForw;
 
 	// create backmapping from source surface down to photosphere
 	if(!doesFileExist(fnMapBack.str()))
 	{
-		map.createAtHeight(sol, sol.grid->upperR, numTheta, numPhi, sol.grid->maxSinLat, true, true);
+		map.createAtHeight(info, sol, sol.grid->upperR, numTheta, numPhi, sol.grid->maxSinLat, true, true);
 		if(sol.grid->isElliptical())
 		{
 			EllipticalGrid* eGrid = (EllipticalGrid*)sol.grid;
@@ -992,7 +905,7 @@ bool PFSSsolution::footpointAnalysis(hcFloat latThresh)
 	// create forward mapping from photosphere to source surface
 	if(!doesFileExist(fnMapForw.str()))
 	{
-		mapForw.createAtHeight(sol, sol.grid->lowerR, numY, numX, sin(maxLatitude), false, true);
+		mapForw.createAtHeight(info, sol, sol.grid->lowerR, numY, numX, sin(maxLatitude), false, true);
 		if(sol.grid->isElliptical())
 		{
 			EllipticalGrid* eGrid = (EllipticalGrid*)sol.grid;
@@ -1154,7 +1067,7 @@ bool PFSSsolution::computeAndMapKielGrid(
  * 	@param	mapResPhi		zonal resolution of magnetic mapping
  * 	@param	mapIntermediateHeights	true, if for each r-shell of the comp grid a magnetic mapping is to be computed *
  */
-bool PFSSsolution::loadAndMapKielGrid(const char *filename, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights)
+bool PFSSsolution::loadAndMapKielGrid(const string &filename, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights)
 {
 	if(!load(filename)) 																return false;
 	if(!multiMapSolution(mapResTheta, mapResPhi, mapIntermediateHeights, true, true)) 	return false;
@@ -1184,11 +1097,7 @@ bool PFSSsolution::loadAndMapStanfordSHC(const char *photFilename, const char *S
 		return false;
 	}
 
-	if (outDir[0] == '\0')
-	{
-		printf("ERROR!\tPFSSsolution::loadAndMapStanfordSHC\n\t output directory has not been set!\n");
-		return false;
-	}
+	if(!isDirSet()) return false;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::loadAndMapStanfordSHC:\n-- photFile:\t'%s'\n-- coeffFile:\t '%s'\n", photFilename, StanfordCoeffFilename);
@@ -1205,9 +1114,8 @@ bool PFSSsolution::loadAndMapStanfordSHC(const char *photFilename, const char *S
 	PFSSsolution_SHC_sun coeffMagfield;
 	coeffMagfield.importCoefficients(StanfordCoeffFilename, true, 2.5*r_sol);
 
-	stringstream coeffFN;
-	coeffFN << outDir << "/" << info.CRnum << "/" << getFilename_harmonicCoeff(info);
-	coeffMagfield.exportCoefficients(coeffFN.str().data());
+	string coeffFN = dirData + "/" + to_string(info.CRnum) + "/" + getFilename_harmonicCoeff(info);
+	coeffMagfield.exportCoefficients(coeffFN.data());
 
 	for(uint r=0;r<solver.grid->numR;++r)
 		for(uint t=0;t<solver.grid->numTheta;++t)
@@ -1234,8 +1142,8 @@ bool PFSSsolution::loadAndMapStanfordSHC(const char *photFilename, const char *S
 
 void plotLine(hcImageRGBA &img, hcImageFloat &zbuf, hcImageBool &occ, const uint &color, const Vec3D &posStart, const Vec3D &posEnd)
 {
-	uint width	= img.width;
-	uint height	= img.height;
+	int width	= img.width;
+	int height	= img.height;
 	hcFloat tfx	= (width-1)/(2.0);
 	hcFloat tfy	= (height-1)/(2.0);
 	Vec3D slope	= posEnd-posStart;
@@ -1467,7 +1375,7 @@ bool PFSSsolution::createProjectedView(hcImageRGBA &corImg, uint width, uint hei
 
 	if(!doesFileExist(mapFN.str().data()))
 	{
-		map.createAtHeight(solver, heightMap, numMaglY,	numMaglX, sin(maxLatitude), false, true);
+		map.createAtHeight(info, solver, heightMap, numMaglY,	numMaglX, sin(maxLatitude), false, true);
 		if(isElliptic)		eGrid->convertMagMapping(map);
 
 		map.exportASCII(mapFN.str().data(), NULL, 0, solver.grid->lowerR, solver.grid->upperR);
@@ -1954,6 +1862,6 @@ bool PFSSsolution::createProjectedView(Imager &corImg, uint width, uint height, 
 
 void PFSSsolution::dump() const
 {
-    printf("Dumping PFSSsolution:\n");
+	printStdOutMess(__FILE__, __LINE__, "dumping PFSSsolution:");
     info.dump();
 }

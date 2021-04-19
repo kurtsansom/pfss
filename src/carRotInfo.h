@@ -26,11 +26,15 @@ public:
 	bool operator>=(const crInfo &other);		/*!< \brief comparison operator					*/
 	bool operator<=(const crInfo &other);		/*!< \brief comparison operator					*/
 
+	bool exportBinary(std::ofstream &stream);
+	bool importBinary(std::ifstream &stream);
+
 	void initNULL();
 	void clear();
 	void init(uint CRnum);
 
-	void dump() const;
+	void dump(uint indent=0) const;
+	/*!< \brief dumps information on this instance to stdout with optional indendtation			*/
 };
 
 class crListElement;
@@ -58,13 +62,13 @@ public:
     void initNULL();
     void init();
 
-    crListElement *getcrListElement(int carRotNum);
+    crListElement *getcrListElement(uint carRotNum);
         /*!< \brief returns the list element representing the specified carRotNum or NULL, if non-existent  */
 
-    bool appendObservation(int carRotNum, originID origin, int pos);
+    bool appendObservation(uint carRotNum, originID origin, int pos);
 
 
-    static void initStaticMembers(const char *filename);
+    static bool initStaticMembers();
     static void clearStaticMembers();
 
     static hcDate getStartDate(int carRotNum);
@@ -77,6 +81,7 @@ public:
         /*!< \brief computes the Carrington rotation number of a specific date                              */
 
     void dump() const ;
+    /*!< \brief dumps information on this instance to stdout with optional indendtation						*/
 };
 
 /*! information on which instrument has been used to compute the magnetic field of Carrington Rotation carRotNum
@@ -106,9 +111,9 @@ public:
     uint numHMI;
     uint numOWN;
 
-    crListElement(int carRotNum=0);             /*!< \brief std-constructor         */
-    crListElement(const crListElement &other);  /*!< \brief cpy constructor         */
-    ~crListElement();
+    crListElement(int carRotNum=0);             /*!< \brief std-constructor         			*/
+    crListElement(const crListElement &other);  /*!< \brief cpy constructor         			*/
+    ~crListElement();							/*!< \brief destructor							*/
 
     crListElement &operator=(const crListElement &other);
 
@@ -123,6 +128,7 @@ public:
         /*!< \brief appends the position in solutions-set of the new observation to element     */
 
     void dump();
+    /*!< \brief dumps information on this instance to stdout with optional indendtation			*/
 
 };
 

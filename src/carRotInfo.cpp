@@ -1,9 +1,10 @@
 #include "src/carRotInfo.h"
+#include "src/filenames.h"
 
 #include "engine/hcTools.h"
 
 #include <boost/regex.hpp>
-//#include <fstream>
+
 #include <iomanip>
 #include <limits>
 #include <cstring>
@@ -98,13 +99,33 @@ void crInfo::init(uint CRnum)
 	timeStop 	= crInfoList::getStopDate(CRnum);
 }
 
-void crInfo::dump() const
+void crInfo::dump(uint indent) const
 {
-	cout << "Dumping crInfo:\n";
+	stringstream ind;
+	if(indent > 0) ind << setw(indent) << setfill(' ') << " ";
+	cout << ind.str() << "Dumping crInfo:\n";
 	cout << left;
-	cout << setw(20) << setfill(' ') << "Carrington rot #: " 	<< CRnum						<< "\n";
-	cout << setw(20) << setfill(' ') << "start time:" 			<< timeStart.toSpiceString() 	<< "\n";
-	cout << setw(20) << setfill(' ') << "end time:" 			<< timeStop.toSpiceString()		<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ') << "Carrington rot #: " 	<< CRnum						<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ') << "start time:" 			<< timeStart.toSpiceString() 	<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ') << "end time:" 			<< timeStop.toSpiceString()		<< "\n";
+}
+
+bool crInfo::exportBinary(std::ofstream &stream)
+{
+	bool retval = true;
+	stream.write(reinterpret_cast<char*>(&CRnum), sizeof(uint));
+	retval &= timeStart.exportBinary(stream);
+	retval &= timeStop.exportBinary(stream);
+	return retval;
+}
+
+bool crInfo::importBinary(std::ifstream &stream)
+{
+	bool retval = true;
+	stream.read(reinterpret_cast<char*>(&CRnum), sizeof(uint));
+	retval &= timeStart.importBinary(stream);
+	retval &= timeStop.importBinary(stream);
+	return retval;
 }
 
 
@@ -174,23 +195,19 @@ void crInfoList::init()
     clear();
 }
 
-crListElement *crInfoList::getcrListElement(int carRotNum)
+crListElement *crInfoList::getcrListElement(uint carRotNum)
 {
     crListElement *element = first;
 
     while(element != NULL && element->CRnum < carRotNum)
         element = element->next;
 
-    if(element == NULL)
-        return NULL;
-
-    if(element->CRnum == carRotNum)
-        return element;
-
+    if(element == NULL)		        return NULL;
+    if(element->CRnum == carRotNum) return element;
     return NULL;
 }
 
-bool crInfoList::appendObservation(int carRotNum, originID origin, int pos)
+bool crInfoList::appendObservation(uint carRotNum, originID origin, int pos)
 {
     crListElement *element = getcrListElement(carRotNum);
 
@@ -247,14 +264,16 @@ bool crInfoList::appendObservation(int carRotNum, originID origin, int pos)
     return false;
 }
 
-void crInfoList::initStaticMembers(const char *filename)
+bool crInfoList::initStaticMembers()
 {
     clearStaticMembers();
 
+    string filename = getFilename_crlist();
+
     if(!doesFileExist(filename))
     {
-    	printf("ERROR!\tcrInfoList::initStaticMembers: File '%s' does not exist!\n", filename);
-    	return;
+    	cerr << __FILE__ << ":" << __LINE__ << ": File '" << filename << "' does not exist.\n";
+    	return false;
     }
 
     std::ifstream in(filename);
@@ -277,7 +296,7 @@ void crInfoList::initStaticMembers(const char *filename)
     listJulianDayNum    = new long int[counter];
     listJulianDayFrac   = new double[counter];
     dateStart           = new hcDate[counter];
-    in.open("../data/crlist");
+    in.open(filename);
 
     counter = 0;
     while(in >> instrings[0] >> instrings[1] >> instrings[2] >> instrings[3] >> instrings[4] >> instrings[5])
@@ -305,6 +324,8 @@ void crInfoList::initStaticMembers(const char *filename)
         ++counter;
     }
     in.close();
+
+    return true;
 }
 
 void crInfoList::clearStaticMembers(){

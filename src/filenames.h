@@ -8,6 +8,13 @@
 #include <string>
 using namespace std;
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// directories
+// ---------------------------------------------------------------------------------------------------------------
+
+string getFilename_crlist();
+
 // ---------------------------------------------------------------------------------------------------------------
 // directories
 // ---------------------------------------------------------------------------------------------------------------
@@ -54,7 +61,7 @@ string getFilename_magMappingExpansionBitmap(	const PFSSsolutionInfo &info, hcFl
 												bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
 	/*!< \brief returns filename for magnetic flux tube expansion factor image	(bitmap)											*/
 
-string getFilename_superconfig(const string &path);
+string getFilename_superconfig();
 	/*!< \brief get filename for PFSS solutions collection file																		*/
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -125,6 +132,16 @@ bool isFileType_magMappingImg(const string &filename);
 
 bool isFileType_magMappingFootImg(const string &filename);
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// file headers
+// ---------------------------------------------------------------------------------------------------------------
+
+string getHeader_main();
+	/*!< \brief program version, author and license information																		*/
+
+//string getHeader_expansionFactorImage();
+	/*!< \brief header information for expansion factor images																		*/
 
 
 void renameFiles(const string &inDir, const string &outDir);

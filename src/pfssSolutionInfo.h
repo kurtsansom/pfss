@@ -24,30 +24,47 @@ public:
     uint computationTime;						/*!< \brief time in seconds it took to compute								*/
     uint solutionSteps;							/*!< \brief number of solution steps to fall below accuracy threshold		*/
 
-    PFSSsolutionInfo();                             	/*!< \brief std constructor         								*/
-    PFSSsolutionInfo(const PFSSsolutionInfo &other);    /*!< \brief cpy constructor         								*/
+    PFSSsolutionInfo();
+    	/*!< \brief std constructor         																				*/
+
+    PFSSsolutionInfo(const PFSSsolutionInfo &other);
+    	/*!< \brief cpy constructor         																				*/
+
     PFSSsolutionInfo(	SynopticInfo synInf, uint sizeofFloat, modelID model, methodID method, groupID group,
         				hcFloat rss, hcFloat ell, uint orderSHC, uint numR, uint numTheta, uint numPhi);
+    	/*!< \brief constructor																								*/
 
     virtual ~PFSSsolutionInfo(){}
+    	/*!< \brief destructor																								*/
 
     PFSSsolutionInfo &operator=(const PFSSsolutionInfo &other);
+    	/*!< \brief assignment operator																						*/
 
     bool operator==(const PFSSsolutionInfo &other);
+    	/*!< \brief comparison operator																						*/
 
     bool operator>(const PFSSsolutionInfo &other);
+    	/*!< \brief comparison operator																						*/
 
     bool operator<(const PFSSsolutionInfo &other);
+    	/*!< \brief comparison operator																						*/
 
     void initNULL();
     void clear();
-
     void init(	SynopticInfo synInf, uint sizeofFloat, modelID model, methodID method, groupID group,
     			hcFloat rss, hcFloat ell, uint orderSHC, uint numR, uint numTheta, uint numPhi);
 
-    string toString() const;
+    bool exportBinary(ofstream &stream);
+    	/*!< \brief export instance to binary stream																		*/
 
-    void dump() const;
+    bool importBinary(ifstream &stream);
+    	/*!< \brief imports instance from binary stream																		*/
+
+    string toString() const;
+    	/*!< \brief returns information on this instance in string															*/
+
+    void dump(uint indent=0) const;
+    	/*!< \brief dumps information on this instance to stdout with optional indendtation									*/
 };
 
 #endif

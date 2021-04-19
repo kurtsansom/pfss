@@ -55,6 +55,9 @@ public:
     bool writeKeyString(const string &keyname, const string &comment, const string &value);
     	/*!< \brief write key keyname with content value										*/
 
+    bool writeKeyComment(const string &comment);
+    	/*< \brief write a comment card															*/
+
     hcFloat getHistogramMaximum(uint numBins);
 
     ImageStatistics getImageStatistics() const;

@@ -98,8 +98,8 @@ EllipticalGrid &EllipticalGrid::operator=(const SphericalGrid &other)
 	temp        	= new hcFloat[numGridPoints];
 	relError    	= new hcFloat[numGridPoints];
 
-	memcpy(pos,     other.getPosArray(),      	numGridPoints * sizeof(Vec3D));
-	memcpy(B,   	other.getBArray(),    		numGridPoints * sizeof(Vec3D));
+	memcpy((char*)pos,     (char*)other.getPosArray(),      	numGridPoints * sizeof(Vec3D));
+	memcpy((char*)B,   	(char*)other.getBArray(),    		numGridPoints * sizeof(Vec3D));
 	memcpy(psi,     other.getPsiArray(),      	numGridPoints * sizeof(hcFloat));
 	memcpy(relError,other.getRelErrorArray(), 	numGridPoints * sizeof(hcFloat));
 	memcpy(temp,    other.getTempArray(),     	numGridPoints * sizeof(hcFloat));
@@ -811,7 +811,7 @@ Vec3D Vec3D::convVecCart2Ell(const Vec3D &cartPos, const EllipticalGrid &grid) c
 	M(2,0) = er[2];	M(2,1) = et[2];	M(2,2) = ep[2]; M(2,3) = content[2];
 
 	Vec3D retval;
-	uint sol = M.solveSLE(retval);
+	M.solveSLE(retval);
 
 	/*
 	Vec3D inv = retval.convVecEll2Cart(cartPos, grid);

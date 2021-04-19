@@ -420,8 +420,8 @@ void hcImage<T>::shiftXdirection(int numPixels)
 		for(uint y=0; y<height; ++y)
 		{
 			int oldX = (int)x - numPixels;
-			oldX += (oldX < 0 		? width : 0);
-			oldX -= (oldX > width-1	? width : 0);
+			oldX += (oldX < 0 				? width : 0);
+			oldX -= (oldX > (int)width-1	? width : 0);
 
 			newData[y * width + x] = data[y * width + oldX];
 		}

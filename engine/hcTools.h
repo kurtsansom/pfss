@@ -16,11 +16,6 @@
 
 typedef unsigned int uint;
 
-//#ifdef GUI
-//#include "src/spice.h"
-//extern Spicer spicer;
-//#endif
-
 struct percentileDataStruct
 {
 	hcFloat perc00, perc01, perc02, perc05, perc10;
@@ -35,24 +30,12 @@ struct percentileDataStruct
     						const string &perc98, const string &perc99, const string &perc100)
     {
     	char *endC;
-    	this->perc00	= strtof(perc00.data(), &endC);
-    	this->perc01	= strtof(perc01.data(), &endC);
-    	this->perc02	= strtof(perc02.data(), &endC);
-    	this->perc05	= strtof(perc05.data(), &endC);
-    	this->perc10	= strtof(perc10.data(), &endC);
-    	this->perc20	= strtof(perc20.data(), &endC);
-    	this->perc25	= strtof(perc25.data(), &endC);
-    	this->perc30	= strtof(perc30.data(), &endC);
-    	this->perc40	= strtof(perc40.data(), &endC);
-    	this->perc50	= strtof(perc50.data(), &endC);
-    	this->perc60	= strtof(perc60.data(), &endC);
-    	this->perc70	= strtof(perc70.data(), &endC);
-    	this->perc75	= strtof(perc75.data(), &endC);
-    	this->perc80	= strtof(perc80.data(), &endC);
-    	this->perc90	= strtof(perc90.data(), &endC);
-    	this->perc95	= strtof(perc95.data(), &endC);
-    	this->perc98	= strtof(perc98.data(), &endC);
-    	this->perc99	= strtof(perc99.data(), &endC);
+    	this->perc00	= strtof(perc00.data(), &endC);	this->perc01	= strtof(perc01.data(), &endC);	this->perc02	= strtof(perc02.data(), &endC);
+    	this->perc05	= strtof(perc05.data(), &endC);	this->perc10	= strtof(perc10.data(), &endC);	this->perc20	= strtof(perc20.data(), &endC);
+    	this->perc25	= strtof(perc25.data(), &endC);	this->perc30	= strtof(perc30.data(), &endC);	this->perc40	= strtof(perc40.data(), &endC);
+    	this->perc50	= strtof(perc50.data(), &endC);	this->perc60	= strtof(perc60.data(), &endC);	this->perc70	= strtof(perc70.data(), &endC);
+    	this->perc75	= strtof(perc75.data(), &endC);	this->perc80	= strtof(perc80.data(), &endC);	this->perc90	= strtof(perc90.data(), &endC);
+    	this->perc95	= strtof(perc95.data(), &endC);	this->perc98	= strtof(perc98.data(), &endC);	this->perc99	= strtof(perc99.data(), &endC);
     	this->perc100	= strtof(perc100.data(), &endC);
     }
 
@@ -60,50 +43,20 @@ struct percentileDataStruct
     {
     	if(this == &other)	return *this;
 
-    	perc00 = other.perc00;
-    	perc01 = other.perc01;
-    	perc02 = other.perc02;
-    	perc05 = other.perc05;
-    	perc10 = other.perc10;
-    	perc20 = other.perc20;
-    	perc25 = other.perc25;
-    	perc30 = other.perc30;
-    	perc40 = other.perc40;
-    	perc50 = other.perc50;
-    	perc60 = other.perc60;
-    	perc70 = other.perc70;
-    	perc75 = other.perc75;
-    	perc80 = other.perc80;
-    	perc90 = other.perc90;
-    	perc95 = other.perc95;
-    	perc98 = other.perc98;
-    	perc99 = other.perc99;
-    	perc100 = other.perc100;
+    	perc00 = other.perc00;	perc01 = other.perc01;	perc02 = other.perc02;	perc05 = other.perc05;	perc10 = other.perc10;
+    	perc20 = other.perc20;	perc25 = other.perc25;	perc30 = other.perc30;	perc40 = other.perc40;	perc50 = other.perc50;
+    	perc60 = other.perc60;	perc70 = other.perc70;	perc75 = other.perc75;	perc80 = other.perc80; 	perc90 = other.perc90;
+    	perc95 = other.perc95; 	perc98 = other.perc98; 	perc99 = other.perc99; 	perc100 = other.perc100;
 
     	return *this;
     }
 
     percentileDataStruct()
     {
-    	perc00 = 0.0;
-    	perc01 = 0.0;
-    	perc02 = 0.0;
-    	perc05 = 0.0;
-    	perc10 = 0.0;
-    	perc20 = 0.0;
-    	perc25 = 0.0;
-    	perc30 = 0.0;
-    	perc40 = 0.0;
-    	perc50 = 0.0;
-    	perc60 = 0.0;
-    	perc70 = 0.0;
-    	perc75 = 0.0;
-    	perc80 = 0.0;
-    	perc90 = 0.0;
-    	perc95 = 0.0;
-    	perc98 = 0.0;
-    	perc99 = 0.0;
-    	perc100 = 0.0;
+    	perc00 = 0.0; 	perc01 = 0.0; 	perc02 = 0.0;  	perc05 = 0.0;  	perc10 = 0.0;
+    	perc20 = 0.0;  	perc25 = 0.0;  	perc30 = 0.0;  	perc40 = 0.0;  	perc50 = 0.0;
+    	perc60 = 0.0;  	perc70 = 0.0;  	perc75 = 0.0;  	perc80 = 0.0;  	perc90 = 0.0;
+    	perc95 = 0.0;  	perc98 = 0.0;  	perc99 = 0.0;  	perc100 = 0.0;
 
     }
 
@@ -175,62 +128,75 @@ struct percentileDataStruct
 };
 typedef struct percentileDataStruct percentiles;
 
-/*! \brief encodes the given color values into one uint to be transfered to the shaders 											*/
+/*! \brief returns nicely formatted floating point number as string																		*/
+string toStr(hcFloat num);
+
+/*! \brief prints status information about program flow to stdout																		*/
+void printStdOutMess(const string &file, const int &line, const string &message);
+
+/*! \brief prints error message to stderr																								*/
+void printErrMess(const string &file, const int &line, const string &message);
+
+/*! \brief encodes the given color values into one uint to be transfered to the shaders 												*/
 uint char2RGBA8(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha);
 
-/*! \brief prints hexadecimal representation of given integer  																		*/
+/*! \brief prints hexadecimal representation of given integer  																			*/
 void printHexCodedInt(uint in);
 
+/*! \brief converts 4-ch. RGBA 8-bit data to 32-bit integer		TODO: retval?															*/
 void RGBA82char(uint color, unsigned char &red, unsigned char &green, unsigned char &blue, unsigned char &alpha);
 
+/* \brief make folder structure to desirec location TODO: param string																	*/
 bool createFolderStructureTo(const char *filename);
 
+/*! \brief returns the numEntrys tabulated entry in input where entries are separated by one of the chars in divider					*/
 string strParser(const string &input, const string &divider, uint numEntry);
-	/*!< \brief returns the numEntrys tabulated entry in input where entries are separated by one of the chars in divider				*/
 
+/*! \brief returns the number of tabular entries in input string where the entries are divided by one of the chars in divider			*/
 uint numTabEntries(const string &input, const string &divider);
-	/*!< \brief returns the number of tabular entries in input string where the entries are divided by one of the chars in divider		*/
 
-
+/*! \brief coordinate transform (e.g. 0-255 -> -128-127)																				*/
 float posTransform(float oldMinValue, float oldMaxValue, float newMinValue, float newMaxValue, float oldPos);
 
-/*! \brief checks if file filename exists                                                                                          	*/
+/*! \brief checks if file filename exists                                                                                          		*/
 bool doesFileExist(const char* filename);
 
-/*! \brief checks if file filename exists                                                                                          	*/
+/*! \brief checks if file filename exists                                                                                          		*/
 bool doesFileExist(const string &filename);
 
-/*! \brief checks if directory dirname exists                                                                                      	*/
+/*! \brief checks if directory dirname exists                                                                                      		*/
 bool directoryExists(const string &dirname);
 
 bool createDir(const string &dirname);
 
 bool checkFileEx(const string &filename, const string &funcName);
 
+/*! \brief sort floating point values in @param arr with @param num elements															*/
 void sort(hcFloat *arr, uint num);
 
+/* \brief bubble-sort on @parm arr with @param num elements																				*/
 void sort_bubble(hcFloat *arr, uint num);
 
+/*! \brief calls std::sort on @param arr with @param num elements																		*/
 void sort_std(hcFloat *arr, uint num);
 
+/*! \brief maps phi to interval [0,2PI) with cyclic boundary																			*/
 hcFloat cyclicPhi(hcFloat phi);
-	/*!< \brief maps phi to interval [0,2PI) with cyclic boundary																	*/
 
-void computationTimeEstimate(uint numberOfComputations, uint numberComputationsDone, const hcDate &startTime);
-
+//void computationTimeEstimate(uint numberOfComputations, uint numberComputationsDone, const hcDate &startTime);
+/*! \brief determines the differential rotational speed of the sun at the given colatitude                                   			*/
 hcFloat solarDiffRotSpeed(hcFloat theta);
-    /*!< \brief determines the differential rotational speed of the sun at the given colatitude                                   	*/
 
+/*! \brief computes backmapped position (HAE spheric) of solar wind package measured at posHAE_s  down to radiusSphere					*/
 Vec3D parkerBackmapHAE_s(const Vec3D &posHAE_s, const hcDate &date, hcFloat radiusSphere,
 		hcFloat solarWindSpeed, bool constRotSpeed=true);
-	/*!< \brief computes backmapped position (HAE spheric) of solar wind package measured at posHAE_s  down to radiusSphere			*/
 
+/*! \brief computes backmapped position (HAE cartesian) of solar wind package measured at posHAE_s  down to radiusSphere				*/
 Vec3D parkerBackmapHAE_c(const Vec3D &posHAE_c, const hcDate &date, hcFloat radiusSphere,
 		hcFloat solarWindSpeed, bool constRotSpeed=true);
-	/*!< \brief computes backmapped position (HAE cartesian) of solar wind package measured at posHAE_s  down to radiusSphere		*/
 
+/*! \brief computes backmapped position (HGC spheric) of solar wind package measured at posHGC_s down to radiusSphere					*/
 Vec3D parkerBackmapHGC_s(const Vec3D &posHGC_s, const hcDate &date, hcFloat radiusSphere,
 		hcFloat solarWindSpeed, bool constRotSpeed=true);
-	/*!< \brief computes backmapped position (HGC spheric) of solar wind package measured at posHGC_s down to radiusSphere			*/
 
 #endif

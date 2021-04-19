@@ -1,5 +1,6 @@
 #include "src/magMapping.h"
 #include "src/ellipticalGrid.h"
+#include "src/filenames.h"
 
 #include "engine/hcImage.h"
 #include "engine/hcTime.h"
@@ -153,10 +154,10 @@ MagMapping::MagMapping(const MagMapping &other)
     *this = other;
 }
 
-MagMapping::MagMapping(bool sinLatFormat, bool compCoords, hcFloat maxSinLat, uint numTheta, uint numPhi, hcFloat height)
+MagMapping::MagMapping(const PFSSsolutionInfo &info, bool sinLatFormat, bool compCoords, hcFloat maxSinLat, uint numTheta, uint numPhi, hcFloat height)
 {
     initNULL();
-    init(sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
+    init(info, sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
 }
 
 MagMapping::~MagMapping()
@@ -170,7 +171,7 @@ MagMapping &MagMapping::operator=(const MagMapping &other)
         return *this;
 
     clear();
-    init(other.sinLatFormat, other.compCoords, other.maxSinLat, other.numTheta, other.numPhi, other.getHeight());
+    init(other.info, other.sinLatFormat, other.compCoords, other.maxSinLat, other.numTheta, other.numPhi, other.getHeight());
 
     for(uint j=0; j<numTheta; ++j)
         for(uint k=0; k<numPhi; ++k)
@@ -199,6 +200,7 @@ Magline &MagMapping::operator()(uint indTheta, uint indPhi)
 
 void MagMapping::initNULL()
 {
+	info			= PFSSsolutionInfo();
     maglines    	= NULL;
     coords      	= NULL;
     height			= 0.0;
@@ -222,10 +224,10 @@ void MagMapping::clear()
     initNULL();
 }
 
-void MagMapping::init(bool sinLatFormat, bool compCoords, hcFloat maxSinLat, uint numTheta, uint numPhi, hcFloat height)
+void MagMapping::init(const PFSSsolutionInfo &info, bool sinLatFormat, bool compCoords, hcFloat maxSinLat, uint numTheta, uint numPhi, hcFloat height)
 {
     clear();
-
+    this->info			= info;
     this->sinLatFormat	= sinLatFormat;
     this->maxSinLat		= maxSinLat;
     //this->dLat			= ?				// TODO: non sine-latitude?
@@ -270,48 +272,43 @@ hcFloat MagMapping::getHeight() const
 	return height;
 }
 
-// TODO sizeof(hcFloat) needs to be stored, sinlatformat, dlat, maxsinlat, need to be stored
-bool MagMapping::exportBinary(const char *filename)
+bool MagMapping::exportBinary(const string &filename)
 {
-    if(!createFolderStructureTo(filename) || boost::filesystem::is_directory(filename))
+    if(!createFolderStructureTo(filename.data()) || boost::filesystem::is_directory(filename.data()))
     {
-        printf("ERROR! MagMapping::exportMap: File '%s' could not be created!\n", filename);
+        cerr << __FILE__ << "/" << __LINE__ << ": File '" << filename << "' cannot not be created!\n";
         return false;
     }
 
+    bool retval 		= true;
+    uint sizeofFloat 	= sizeof(hcFloat);
     std::ofstream file;
     file.open(filename, std::ios::out | std::ios::binary);
 
+    file.write(reinterpret_cast<char*>(&sizeofFloat),	sizeof(uint));
+    retval &= info.exportBinary(file);
     file.write(reinterpret_cast<char*>(&sinLatFormat),	sizeof(bool));
+    file.write(reinterpret_cast<char*>(&maxSinLat),		sizeofFloat);
     file.write(reinterpret_cast<char*>(&compCoords),	sizeof(bool));
     file.write(reinterpret_cast<char*>(&numTheta),		sizeof(uint));
     file.write(reinterpret_cast<char*>(&numPhi),		sizeof(uint));
-    file.write(reinterpret_cast<char*>(&height),		sizeof(hcFloat));
+    file.write(reinterpret_cast<char*>(&height),		sizeofFloat);
 
     for(uint i=0; i<numTheta*numPhi; ++i)
     {
-        file.write(reinterpret_cast<char*>(&coords[i](0)),         sizeof(hcFloat));
-        file.write(reinterpret_cast<char*>(&coords[i](1)),         sizeof(hcFloat));
+        file.write(reinterpret_cast<char*>(&coords[i](0)),sizeofFloat);
+        file.write(reinterpret_cast<char*>(&coords[i](1)),sizeofFloat);
     }
 
     for(uint j=0; j<numTheta; ++j)
         for(uint k=0; k<numPhi; ++k)
-        {
-            char *array = NULL;
-            operator ()(j, k).exportBinary(&array);
-            uint numBytes;
-            memcpy(reinterpret_cast<char*>(&numBytes), array, sizeof(uint));
-            file.write(array, numBytes);
-            delete [] array;
-        }
+        	retval &= operator ()(j, k).exportBinary(file);
     file.close();
 
-    return true;
+    return retval;
 }
 
-/*!	imports all the magnetic field lines from a binary file
- *
- */
+
 bool MagMapping::importBinary(const string &filename)
 {
     if(!doesFileExist(filename))
@@ -320,55 +317,37 @@ bool MagMapping::importBinary(const string &filename)
         return false;
     }
 
-    std::ifstream file;
-    file.open(filename, std::ios::out | std::ios::binary);
+    PFSSsolutionInfo inf;
+    ifstream stream;
+	stream.open(filename, std::ios::out | std::ios::binary);
+    bool retval 		= true;
+    uint sizeoffloat	= 0;
+	stream.read(reinterpret_cast<char*>(&sizeoffloat),	sizeof(uint));
+	if(sizeoffloat != 4 && sizeoffloat != 8) return false;
+	char *tempFloat		= sizeoffloat == 4 ? reinterpret_cast<char*>(new float()): reinterpret_cast<char*>(new double());
+    retval &= inf.importBinary(stream);
+    stream.read(reinterpret_cast<char*>(&sinLatFormat),	sizeof(bool));
+    stream.read(reinterpret_cast<char*>(tempFloat),		sizeoffloat); maxSinLat = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
+    stream.read(reinterpret_cast<char*>(&compCoords),	sizeof(bool));
+    stream.read(reinterpret_cast<char*>(&numTheta),		sizeof(uint));
+    stream.read(reinterpret_cast<char*>(&numPhi),		sizeof(uint));
+    stream.read(reinterpret_cast<char*>(tempFloat),		sizeoffloat); height 	= sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
 
-    file.read(reinterpret_cast<char*>(&sinLatFormat),	sizeof(bool));	// TODO: combine with maxsinlat to replace the need to store coords, see below
-    file.read(reinterpret_cast<char*>(&compCoords),		sizeof(bool));
-    file.read(reinterpret_cast<char*>(&numTheta),		sizeof(uint));
-    file.read(reinterpret_cast<char*>(&numPhi),			sizeof(uint));
-    file.read(reinterpret_cast<char*>(&height),         sizeof(hcFloat));
-
-    init(sinLatFormat, compCoords, 0.0, numTheta, numPhi, height);		// TODO: coords should not need to be stored, but maxsinlat should be
-
+    init(inf, sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
 
     for(uint i=0; i<numTheta*numPhi; ++i)
     {
-        file.read(reinterpret_cast<char*>(&coords[i](0)),         sizeof(hcFloat));
-        file.read(reinterpret_cast<char*>(&coords[i](1)),         sizeof(hcFloat));
+        stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); coords[i](0) = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
+        stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); coords[i](0) = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
     }
 
     for(uint j=0; j<numTheta; ++j)
         for(uint k=0; k<numPhi; ++k)
-        {
-            uint numBytes;
-            file.read(reinterpret_cast<char*>(&numBytes), sizeof(uint));
-            char *array = new char[numBytes];
-            memcpy(array, &numBytes, sizeof(uint));
-            file.read(array + sizeof(uint), numBytes-sizeof(uint));
-            operator ()(j, k).importBinary(array);
-            delete [] array;
-        }
-    file.close();
+        	retval &= operator ()(j, k).importBinary(stream);
+    stream.close();
 
-    Vec2D coord_0	= coords[index(0,0)];
-    Vec2D coord_1	= coords[index(1,0)];
-    Vec2D coord_2	= coords[index(2,0)];
-
-    hcFloat theta_0		= coord_0[0];
-    hcFloat theta_1		= coord_1[0];
-    hcFloat theta_2		= coord_2[0];
-
-    hcFloat maxSinLat	= sin(PI/2.0 - theta_0);
-    hcFloat dt_0		= theta_1 - theta_0;
-    hcFloat dt_1		= theta_2 - theta_1;
-
-    this->maxSinLat 	= maxSinLat;
-    this->sinLatFormat	= fabs(dt_0-dt_1) > 1E-3;
-
-    //cout << theta_0 << " " << theta_1 << " " << theta_2 << " " << maxSinLat << " " << sinLatFormat << "\n";
-
-    return true;
+    delete tempFloat;
+    return retval;
 }
 
 /*! compares photospheric footpoints of back mapped magnetic field lines
@@ -432,7 +411,6 @@ hcFloat MagMapping::getOpenFlux()
 {
 	hcFloat retval 		= 0.0;
 	hcFloat maxSinLat	= sin(PI/2.0 - coords[index(0,0)][0]);
-	//cout << "theta: " << asin(maxSinLat)*360/(2*PI) << "\n";
 
 	for(uint t=0; t<numTheta; ++t)
 		for(uint p=0; p<numPhi; ++p)
@@ -456,7 +434,7 @@ hcFloat MagMapping::getOpenFlux()
 
 			if(num == 0)
 			{
-				cout << __FILE__ << ":" << __LINE__ << ": no intersection points found. This should not be possible\n";
+				printStdOutMess(__FILE__, __LINE__, "no intersection points found. This message should not be possible.");
 				continue;
 			}
 
@@ -512,53 +490,44 @@ hcFloat MagMapping::getOpenFlux()
  * \param compCoords	height given in computational coordinates (true) or world coordinates (false)
  * \return              success
  */
-bool MagMapping::createAtHeight(LaplaceSolver &solver, hcFloat height, uint numThetaIn, uint numPhiIn,
+bool MagMapping::createAtHeight(const PFSSsolutionInfo &info, LaplaceSolver &solver, hcFloat height, uint numThetaIn, uint numPhiIn,
                                 hcFloat maxSinLatIn, bool sinLatFormatIn, bool compCoords)
 {
+	printStdOutMess(__FILE__, __LINE__, "started mapping with NUMTHREADS=" + to_string(NUMTHREADS));
+
 	if(!solver.solutionComputed)
 	{
-		cerr << __FILE__ << ":" << __LINE__ << ": Solver has not been used for computation\n";
+		printErrMess(__FILE__, __LINE__, "solver has not been used for computation");
 		return false;
 	}
 
 	hcDate timeStart, timeStop;
-	timeStart.setFromSystemTime();
 
 	uint numTheta		= numThetaIn == 0 ? solver.grid->numTheta 	: numThetaIn;
 	uint numPhi			= numThetaIn == 0 ? solver.grid->numPhi		: numPhiIn;
 	hcFloat maxSinLat	= numThetaIn == 0 ? solver.grid->maxSinLat	: maxSinLatIn;
 	bool sinLatGrid		= numThetaIn == 0 ? solver.grid->sinLatGrid	: sinLatFormatIn;
-
-	bool retval = false;
+	bool retval 		= false;
 
 #if NUMTHREADS > 1
-		retval = createAtHeight_MP(solver, height, numTheta, numPhi, maxSinLat, sinLatGrid, compCoords);
+		retval = createAtHeight_MP(info, solver, height, numTheta, numPhi, maxSinLat, sinLatGrid, compCoords);
 #else
-		retval = createAtHeight_SP(solver, height, numTheta, numPhi, maxSinLat, sinLatGrid, compCoords);
+		retval = createAtHeight_SP(info, solver, height, numTheta, numPhi, maxSinLat, sinLatGrid, compCoords);
 #endif
 
 	timeStop.setFromSystemTime();
-	hcFloat time	= (hcFloat)((timeStop-timeStart)/hcDate::facSec);
-	uint numThreads	= 1;
-#if NUMTHREADS > 1
-	numThreads		= NUMTHREADS;
-#endif
-
-
-	cout << "MapMapping::createAtHeight (#threads: " << numThreads <<") took " << time / (numTheta*numPhi) << " s per pixel, ";
-	cout << time << "s overall\n"; fflush(stdout);
+	string message 	= "took " + toStr((timeStop-timeStart)/hcDate::facSec) + " s to map with NUMTHREADS=" + to_string(NUMTHREADS);
+	printStdOutMess(__FILE__, __LINE__ , message);
 	return retval;
 }
 
-bool MagMapping::createAtHeight_SP(LaplaceSolver &solver, hcFloat height, uint numTheta, uint numPhi,
+bool MagMapping::createAtHeight_SP(const PFSSsolutionInfo &info, LaplaceSolver &solver, hcFloat height, uint numTheta, uint numPhi,
                                 hcFloat maxSinLat, bool sinLatFormat, bool compCoords)
 {
 	hcFloat dSinLat = 2*maxSinLat		/ (numTheta - 1);
 	hcFloat dLat	= 2*asin(maxSinLat)	/ (numTheta - 1);
 
-    init(sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
-
-    printf("MagMapping::createAtHeight: Starting single-thread version\n");
+    init(info, sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
 
     for(uint j=0; j<numTheta; ++j)
         for(uint k=0; k<numPhi; ++k)
@@ -566,18 +535,12 @@ bool MagMapping::createAtHeight_SP(LaplaceSolver &solver, hcFloat height, uint n
             Magline &magline	= operator()(j, k);
             hcFloat theta		= sinLatFormat ? PI/2 - asin(maxSinLat - j * dSinLat) : PI/2-asin(maxSinLat) + j*dLat;
             hcFloat phi         =  k * 2 * PI / numPhi;
-#ifdef PHINOTCENTERED
-            phi					= (nPhi + 1.0/2.0) * 2 * PI / numPhi;
-#endif
             Vec3D pos			= Vec3D(height, theta, phi);
             Vec3D posSpher		= solver.grid->isElliptical() ? pos.convCoordSpher2Ell(*(dynamic_cast<EllipticalGrid*>(solver.grid))) : pos;
             Vec3D posComp		= compCoords ? pos : posSpher;
             coords[index(j, k)] = Vec2D(posComp[1], posComp[2]);
 
             magline.createMaglineThroughPos(*solver.grid, posComp, false);
-
-            if(!magline.valid)
-            	printf("MagMapping::createAtHeight_SP j/k: %u/%u invalid\n", j, k);
         }
 
     return true;
@@ -586,10 +549,10 @@ bool MagMapping::createAtHeight_SP(LaplaceSolver &solver, hcFloat height, uint n
 #ifdef NUMTHREADS
 /*! multi core version of magnetic field line creation
  */
-bool MagMapping::createAtHeight_MP(LaplaceSolver &solver, hcFloat height, uint numTheta, uint numPhi,
+bool MagMapping::createAtHeight_MP(const PFSSsolutionInfo &info, LaplaceSolver &solver, hcFloat height, uint numTheta, uint numPhi,
                                 hcFloat maxSinLat, bool sinLatFormat, bool compCoords)
 {
-	init(sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
+	init(info, sinLatFormat, compCoords, maxSinLat, numTheta, numPhi, height);
 
 	uint numMaglines				= numTheta * numPhi;
 	bool *workedUpon 				= new bool[numMaglines];
@@ -606,9 +569,6 @@ bool MagMapping::createAtHeight_MP(LaplaceSolver &solver, hcFloat height, uint n
 		uint nTheta			= (i - nPhi) 	/ numPhi;
 		hcFloat theta		= sinLatFormat ? PI/2 - asin(maxSinLat - nTheta * dSinLat) : PI/2-asin(maxSinLat) + nTheta*dLat;
 		hcFloat phi			= nPhi    		* 2 * PI / numPhi;
-	#ifdef PHINOTCENTERED
-		phi					= (nPhi + 1.0/2.0) * 2 * PI / numPhi;
-	#endif
 		Vec3D pos			= Vec3D(height, theta, phi);
 		Vec3D posSpher		= grid->isElliptical() ? pos.convCoordSpher2Ell(*egrid) : pos;
 		Vec3D posC			= compCoords ? pos : posSpher;
@@ -725,11 +685,6 @@ void *MagMapping::createAtHeight_threadEntryPoint(void *parameter)
 	}
 	param->magline->createMaglineThroughPos(*grid, *param->posStart, debug);
 
-	if(debug)
-    {
-    	//printf("MagMapping::createAtHeight: createMaglineThroughPos finished j (theta): %u\tk (phi): %u\n", nTheta, nPhi);
-    	fflush(stdout);
-    }
 	pthread_mutex_lock(param->runningMutex);
 	--(*param->numRunningThreads);
 	*param->threadRunning = 0;
@@ -746,7 +701,7 @@ void MagMapping::createMappingHeader(char *header, hcFloat height, hcFloat *othe
 	string timestamp = now.toString();
 
 	header[0] = '\0';
-	sprintf(header, "# TODO:\t\tname and version of program\n");
+	sprintf(header, "# pfss version %u.%u\n", PFSS_VER_MAJ, PFSS_VER_MIN);
 	strcat(header, "# author:\t\tMartin A. Kruse (kruse@physik.uni-kiel.de)\n#\n");
 
 
@@ -803,19 +758,17 @@ void MagMapping::createMappingHeader(char *header, hcFloat height, hcFloat *othe
 	strcat(header, "\n#\n");
 }
 
-
-
 bool MagMapping::exportImage(string filename)
 {
    if(maglines == NULL)
 	{
-		cerr << __FILE__ << ":" << __LINE__ << " maglines not initialized\n";
+		cerr << __FILE__ << ":" << __LINE__ << " maglines not initialized.\n";
 		return false;
 	}
 
 	if(!createFolderStructureTo(filename.c_str()))
 	{
-		cerr << __FILE__ << ":" << __LINE__ << " Requested filename \n'" << filename << "'\ncannot be created\n";
+		cerr << __FILE__ << ":" << __LINE__ << " Requested filename \n'" << filename << "'\ncannot be created.\n";
 		return false;
 	}
 
@@ -848,13 +801,13 @@ bool MagMapping::exportFootpointImage(string filename)
 {
 	if(maglines == NULL)
 	{
-		cerr << __FILE__ << ":" << __LINE__ << " maglines not initialized\n";
+		cerr << __FILE__ << ":" << __LINE__ << " maglines not initialized.\n";
 		return false;
 	}
 
 	if(!createFolderStructureTo(filename.c_str()))
 	{
-		cerr << __FILE__ << ":" << __LINE__ << " Requested filename \n'" << filename << "'\ncannot be created\n";
+		cerr << __FILE__ << ":" << __LINE__ << " Requested filename \n'" << filename << "'\ncannot be created.\n";
 		return false;
 	}
 
@@ -879,7 +832,7 @@ bool MagMapping::exportFootpointImage(string filename)
 			//int y			= numTheta - 1 - (int)round((sin(PI/2.0-foot[0])-minSinLat)*tfY);
 			uint y			= (uint)round((sin(PI/2.0-foot[0])-minSinLat)*tfY);
 
-			if(magL.valid && y>=0 && y<numTheta)
+			if(magL.valid && y<numTheta)
 			{
 				if(magL.closed)			imgFoot(x, y) 	= Magline::colorClosed;
 				else
@@ -974,235 +927,6 @@ bool MagMapping::exportASCII(string filename, hcFloat *heights, uint numHeights,
     return true;
 }
 
-// TODO: not working
-bool MagMapping::exportCurvatureAtHeight(const char *filename, hcFloat height)
-{
-	if(maglines == NULL)
-	{
-		printf("ERROR! MagMapping::exportCurvature: magneticLines not initialized!\n");
-		return false;
-	}
-
-	FILE *output = fopen(filename, "w");
-
-	char outputstring[100000];
-	char tempstr[10000];
-
-	outputstring[0] = '\0';
-	tempstr[0]      = '\0';
-
-	hcDate now;
-	now.setFromSystemTime();
-	//now.str(tempstr);
-	string timestamp = now.toString();
-
-	sprintf(outputstring, "# file created: %s\n#\n", timestamp.data());
-	strcat(outputstring, "# curvature configuration map\n");
-
-	strcat(outputstring, "# format:\n#\n");
-	strcat(outputstring, "#\ttheta(height) phi(height) X curvature (a.u.)\n#\n");
-	strcat(outputstring, "# where X is the polarity flag (P positive, N negative, C closed, I invalid)\n");
-
-	tempstr[0]      = '\0';
-	sprintf(tempstr, "# height of map:\t\t%E\n#\n", height);
-	strcat(outputstring, tempstr);
-
-	fprintf(output, "%s", outputstring);
-
-	for(uint j=0; j<numTheta; ++j)
-		for(uint k=0; k<numPhi; ++k)
-		{
-			Magline &magL   = *maglines[index(j, k)];                       // magline considered
-			Vec2D &coord    = coords[index(j, k)];
-			uint indL       = 0;                                            // index at photosphere
-
-			outputstring[0] = '\0';
-			sprintf(outputstring, "%E %E ", coord[0], coord[1]);
-
-			if(!magL.valid)
-				strcat(outputstring, "I 0.0");
-			else
-			{
-				tempstr[0] = '\0';
-
-				if(magL.closed)
-					sprintf(tempstr, "C ");
-				else
-				{
-					bool polarity = magL.magdata[indL][0] > 0 ? 1 : 0;
-
-					if(polarity)	sprintf(tempstr, "P ");
-					else			sprintf(tempstr, "N ");
-				}
-				strcat(outputstring, tempstr);
-				tempstr[0] = '\0';
-
-				hcFloat curvature	= 0.0f;
-				if(!magL.getCurvatureAtHeight(height, curvature))	sprintf(tempstr, "0.0");
-				else												sprintf(tempstr, "%E", curvature);
-
-				strcat(outputstring, tempstr);
-			}
-			fprintf(output, "%s\n", outputstring);
-		}
-
-	fclose(output);
-
-	return true;
-}
-
-/*! \brief exports curvature data for the map with entries for all other heights
- *  in the given MultiMapping
- */
-bool MagMapping::exportMultiCurvature(
-		const char *filename, hcFloat height, hcFloat *heights, uint numHeights,
-		hcFloat lowerR, hcFloat sourceSurfaceR)
-{
-	if(maglines == NULL)
-	{
-		printf("ERROR::MagMapping::exportMapping: magneticLines not initialized!\n");
-		return false;
-	}
-
-	FILE *output = fopen(filename, "w"); // TODO: check, if file and dir exist
-
-	char outputstring[100000];
-	char tempstr[10000];
-	char tempstr2[10000];
-
-	outputstring[0] = '\0';
-	tempstr[0]      = '\0';
-	hcDate now;
-	now.setFromSystemTime();
-	string timestamp = now.toString();
-
-	sprintf(outputstring, "# TODO:\t\tname and version of program\n");
-	strcat(outputstring, "# author:\t\tMartin A. Kruse (kruse@physik.uni-kiel.de)\n#\n");
-
-	tempstr2[0]      = '\0';
-	sprintf(tempstr2, "# time stamp: %s\n#\n", timestamp.data());
-	strcat(outputstring, tempstr2);
-
-	strcat(outputstring, "# curvature configuration map\n");
-
-	strcat(outputstring, "# format:\n#\n");
-	strcat(outputstring, "#\ttheta(height) phi(height) X curvature(height) curvature(phot) curvature(source surface) curvature(height1) curvature(height2) ...\n#\n");
-	strcat(outputstring, "# where X is the polarity flag (P positive, N negative, C closed, I invalid)\n");
-	strcat(outputstring, "# A '-' at some height means that the magnetic field line\n");
-	strcat(outputstring, "# does not extend to that specific height\n");
-	strcat(outputstring, "# Curvature is measured by computing the acceleration of\n");
-	strcat(outputstring, "# a hypothetical particle moving with 1 m/s along the magnetic field line.\n");
-	strcat(outputstring, "# Therefore the unit of curvature is m/s^2.\n");
-
-	tempstr[0]      = '\0';
-	sprintf(tempstr, "# height of map (m):\t\t%E\n# number of intermed. height levels: %u\n# height levels (m):\n#\n", height, numHeights);
-	strcat(outputstring, tempstr);
-
-	tempstr[0]      = '\0';
-	sprintf(tempstr, "# 0\t%E (base height of this map)\n", height);
-	strcat(outputstring, tempstr);
-
-	tempstr[0]      = '\0';
-	sprintf(tempstr, "# 1\t%E (height of lower boundary)\n", lowerR);
-	strcat(outputstring, tempstr);
-
-	tempstr[0]      = '\0';
-	sprintf(tempstr, "# 2\t%E (height of source sourface)\n", sourceSurfaceR);
-	strcat(outputstring, tempstr);
-
-	for(uint i=0; i<numHeights; ++i)
-	{
-		tempstr[0]      = '\0';
-		sprintf(tempstr, "# %u\t%E\n", i+3, heights[i]);
-		strcat(outputstring, tempstr);
-	}
-
-	tempstr[0] = '\0';
-	sprintf(tempstr, "#\n# each line thus has the following format:\n#\n");
-	strcat(tempstr, "# theta(height) phi(height) X curvature(height) curvature(phot) curvature(source surface) ");
-	strcat(outputstring, tempstr);
-	for(uint i=0; i<numHeights; ++i)
-	{
-		tempstr[0] = '\0';
-		sprintf(tempstr, "curvature(%E m) ", heights[i]);
-		strcat(outputstring, tempstr);
-	}
-	strcat(outputstring, "\n#\n");
-	fprintf(output, "%s", outputstring);
-
-
-	for(uint j=0; j<numTheta; ++j)
-		for(uint k=0; k<numPhi; ++k)
-		{
-			Magline &magL   = *maglines[index(j, k)];                       // magline considered
-			Vec2D &coord    = coords[index(j, k)];
-			uint indL       = 0;
-			//uint indU       = magL.numSamples - 1;
-
-			outputstring[0] = '\0';
-			sprintf(outputstring, "%E %E ", coord[0], coord[1]);
-
-			if(!magL.valid)
-			{
-				strcat(outputstring, "I ");
-			}
-			else
-			{
-				tempstr[0] = '\0';
-
-				if(magL.closed)
-					sprintf(tempstr, "C ");
-				else
-				{
-					bool polarity = magL.magdata[indL][0] > 0 ? 1 : 0;
-
-					if(polarity)
-						sprintf(tempstr, "P ");
-					else
-						sprintf(tempstr, "N ");
-				}
-				strcat(outputstring, tempstr);
-				tempstr[0] = '\0';
-
-				hcFloat curvature	 = 0.0;
-
-				if(!magL.getCurvatureAtHeight(height, curvature))
-					sprintf(tempstr, "- ");
-				else
-					sprintf(tempstr, "%E ", curvature);
-				strcat(outputstring, tempstr);
-
-				if(!magL.getCurvatureAtHeight(lowerR, curvature))
-					sprintf(tempstr, "- ");
-				else
-					sprintf(tempstr, "%E ", curvature);
-				strcat(outputstring, tempstr);
-
-				if(!magL.getCurvatureAtHeight(sourceSurfaceR, curvature))
-					sprintf(tempstr, "- ");
-				else
-					sprintf(tempstr, "%E ", curvature);
-				strcat(outputstring, tempstr);
-
-				for(uint i=0; i<numHeights; ++i)
-				{
-					hcFloat specHeight	= heights[i];
-					hcFloat curvature	= 0.0f;
-
-					if(!magL.getCurvatureAtHeight(specHeight, curvature))
-						sprintf(tempstr, "- ");
-					else
-						sprintf(tempstr, "%E ", curvature);
-
-					strcat(outputstring, tempstr);
-				}
-			}
-			fprintf(output, "%s\n", outputstring);
-		}
-
-	fclose(output);
-	return true;
-}
 
 bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &fn_fits, const string &fn_bitmap)
 {
@@ -1213,7 +937,7 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 	hcFloat crpix2		= (numTheta+1) / 2.0;
 	hcFloat crval1		= 180;
 	hcFloat crval2		= 0;
-	//hcFloat nullval		= 0.0;
+	hcFloat nullval		= 0.0;
 
 	hcImageFITS expansion(numPhi, numTheta);
 
@@ -1240,11 +964,14 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 			hcFloat factor 	= bl * rl * rl / (bu * ru * ru);
 			expansion(k, numTheta - j - 1)	= factor;
 		}
+	bool retval 	= true;
 
+	retval &= expansion.save(fn_fits.data());
+
+	/*
 	hcFloat valMax	= 10000;
 	hcFloat valMin	= 1;
 	hcFloat conv	= 255 / log10(valMax/valMin);
-
 	hcImageRGBA bitmap(numPhi, numTheta);
 
 	for(uint j=0; j<numTheta; ++j)
@@ -1256,11 +983,33 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 			hcFloat val_out	= conv * (log10(val_in)-log10(valMin));
 			bitmap(x,y)		= char2RGBA8(val_out, val_out, val_out, 255);
 		}
+	retval &= bitmap.save(fn_bitmap.data());//*/
 
-	bool retval = true;
+	hcDate now; now.setFromSystemTime();
+	stringstream comment;
+	comment << "This file was generated by the pfss program (version: " << PFSS_VER_MAJ << ":" << PFSS_VER_MIN << ") developed at IEAP, Kiel university, Author: Martin A. Kruse (kruse@physik.uni-kiel.de), File generated: " << now.toString() << " ";
+	expansion.writeKeyComment(comment.str()); comment.str("");
 
-	retval &= expansion.save(fn_fits.data());
-	retval &= bitmap.save(fn_bitmap.data());
+	PFSSsolutionInfo info;
+	hcFloat height;
+	bool sinLatFormat, compCoords;
+	uint resTheta, resPhi;
+
+	getParamFromFN_magMapping(fn_fits, info, height, sinLatFormat, compCoords, resTheta, resPhi);
+
+	if(info.method == METH_ELLIPTICAL)
+	{
+		if(compCoords)
+		{
+			comment << "WARNING: This map uses computational coordinates in an elliptical grid. ";
+			comment << "World coordinates presented in this file have to be transformed using the coordinate transformations from elliptic to cartesian/spheric coordinates.";
+		}
+	}
+	comment << "Parameters of the PFSS solution: Model: " << getStringFromModelID(info.model) << ", group: " << getStringFromGroupID(info.group) << ", method: " << getStringFromMethodID(info.method);
+	comment << "rss: " << info.rss / r_sol << " r_sol, ellipticity: " << info.ell << ", SHC order: " << info.orderSHC << ", numR: " << info.numR << ", numTeta: " << info.numTheta << ", numPhi: " << info.numPhi;
+	comment << ", dailyID: " << info.dailyID << ", computation time: " << info.computationTime << ", date computed: " << info.dateComputed.toString();
+	expansion.writeKeyComment(comment.str()); comment.str("");
+
 //	expansion.writeKeyFloat("DSINLAT", "Spacing in Sine-Latitude direction", dSinLat);
 	expansion.writeKeyFloat("MAXSL", "max(sin(latitude)), northern sin(latitude) of image boundary", maxSinLat);
 	expansion.writeKeyString("CTYPE1", "longitude", "CRLN-CEA");
@@ -1273,30 +1022,28 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 	expansion.writeKeyFloat("CRPIX2", "coord. system reference pixel 2", crpix2);
 	expansion.writeKeyFloat("CRVAL1", "coordinate at ref. pixel 1", crval1);
 	expansion.writeKeyFloat("CRVAL2", "coordinate at ref. pixel 2", crval2);
-	//expansion.writeKeyFloat("CROTA1", "coord. system rotation angle 1", nullval);
-	//expansion.writeKeyFloat("CROTA2", "coord. system rotation angle 2", nullval);
+	expansion.writeKeyFloat("CROTA1", "coord. system rotation angle 1", nullval);
+	expansion.writeKeyFloat("CROTA2", "coord. system rotation angle 2", nullval);
 	expansion.writeKeyString("CUNIT1", "coordinate unit 1", "degree");
 	expansion.writeKeyString("CUNIT2", "coordinate unit 2", "sinlat");
-	expansion.writeKeyString("WCSNAME", "WCS name", "Heliographic");
-
+	expansion.writeKeyString("WCSNAME", "World Coordinate system name", "Heliographic");
 	return retval;
 }
 
-void MagMapping::dump()
+void MagMapping::dump(uint indent)
 {
 	uint numValid = 0;
 	for(uint i=0; i<numTheta; ++i)
 		for(uint j=0; j<numPhi; ++j)
 			if(operator()(i,j).valid) ++numValid;
 
-	cout << "Dumping MagMapping\n";
-	cout << setw(20) << setfill(' ' ) << "numTheta:" 		<< numTheta << "\n";
-	cout << setw(20) << setfill(' ' ) << "numPhi:" 			<< numPhi 	<< "\n";
-	cout << setw(20) << setfill(' ' ) << "numValid:"		<< numValid << "\n";
-	cout << setw(20) << setfill(' ' ) << "colorPositive:"	<< Magline::colorPositive 	<< "\n";
-	cout << setw(20) << setfill(' ' ) << "colorNegative:"	<< Magline::colorNegative 	<< "\n";
-	cout << setw(20) << setfill(' ' ) << "colorInvalid:"	<< Magline::colorInvalid 	<< "\n";
-	cout << setw(20) << setfill(' ' ) << "colorClosed:"		<< Magline::colorClosed 	<< "\n";
+	stringstream ind;
+	if(indent > 0) ind << setw(indent) << setfill(' ') << " ";
+	cout << ind.str() << "Dumping MagMapping:\n";
+	info.dump(indent+1);
+	cout << ind.str() << setw(20) << setfill(' ' ) << std::left << "numTheta:" 	<< numTheta << "\n";
+	cout << ind.str() << setw(20) << setfill(' ' ) << "numPhi:" 				<< numPhi 	<< "\n";
+	cout << ind.str() << setw(20) << setfill(' ' ) << "numValid:"				<< numValid << "\n";
 }
 
 /*

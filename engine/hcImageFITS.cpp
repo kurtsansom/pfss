@@ -333,6 +333,29 @@ bool hcImageFITS::writeKeyString(const string &keyname, const string &comment, c
 	return true;
 }
 
+bool hcImageFITS::writeKeyComment(const string &comment)
+{
+	int status 	= 0;
+	bool result = true;
+
+	if(filePtr == NULL)
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": filePtr not initialized. Save file first.\n";
+		return false;
+	}
+
+	pthread_mutex_lock(&hcImageFITS::mutexFits);
+	if (fits_write_comment(filePtr, comment.data(), &status))
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": comment '" << comment << "' cannot be written.\n";
+		printerror(status);
+		result = false;
+	}
+	pthread_mutex_unlock(&hcImageFITS::mutexFits);
+
+	return result;
+}
+
 bool hcImageFITS::save(const string &filename)
 {
 	bool retval			= true;

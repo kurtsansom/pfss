@@ -485,8 +485,8 @@ void LaplaceSolver::computeLowerBoundaryPsi_GPU()
     checkCUDAerror("Kernel_computeLowerBoundary!\n");
 }
 
-void LaplaceSolver::iterate_GPU(){
-
+void LaplaceSolver::iterate_GPU()
+{
     uint TPB 			= MAX_TPB;
     uint BPI 			= MAX_NUM_BLOCK;
     uint numGridPoints  = grid->numTheta * grid->numPhi * grid->numR;
@@ -495,28 +495,24 @@ void LaplaceSolver::iterate_GPU(){
 
 	for(uint num=0;num<numSubdiv;++num)
 	{
-		checkCUDAerror("before_iterate\n");
+		checkCUDAerror(__FILE__, __LINE__);
 #ifdef SPHERICUNITVEC
 		if(!grid->isElliptical())	kernel_iterate_spheric<<< BPI, TPB, 0>>>(*this->d_solver, num * BPI);
 		else
 #endif
 									kernel_iterate_elliptic<<<BPI, TPB, 0>>>(*this->d_solver, num * BPI);
 		cudaDeviceSynchronize();
-		checkCUDAerror("Kernel_iterate\n");
+		checkCUDAerror(__FILE__, __LINE__);
 
 		kernel_setPsi<<<BPI, TPB, 0>>>(*this->d_solver, num * BPI);
 		cudaDeviceSynchronize();
-		checkCUDAerror("Kernel_setPsi\n");
+		checkCUDAerror(__FILE__, __LINE__);
 	}
 }
 
 int LaplaceSolver::computeSolution_GPU(uint maxNumIterations, float errorThreshold, hcImageFITS &photBoundary, bool verbose)
 {
-	hcDate now;
-	now.setFromSystemTime();
-	cout << "LaplaceSolver::computeSolution_GPU started at " << now.toSpiceString() << "\n";
-	fflush(stdout);
-    uint loopnum = 0;
+	printStdOutMess(__FILE__, __LINE__, "CUDA-version of PFSS solver started");
     grid->clearValues();
 
     // first, compute the lower boundary potential via B_r = - dPsi / dr -> Psi_0 = Phsi_1 + dr * B_r
@@ -526,18 +522,19 @@ int LaplaceSolver::computeSolution_GPU(uint maxNumIterations, float errorThresho
   	grid->extract_relError();
 
     // now perform the main loop. Compute next value for Psi and abort
-    // if the difference to the step before is low
+    // if the difference to the step before is below threshold
     hcFloat maxError		= errorThreshold;
     uint counter            = 0;
-    uint errorCheckSteps    = 100;
+    uint threshCheckSteps   = 100;
 
+    uint loopnum 			= 0;
     while(loopnum < maxNumIterations)
     {
         ++counter;
         iterate_GPU();
         computeLowerBoundaryPsi_GPU();
 
-        if(counter == errorCheckSteps)
+        if(counter == threshCheckSteps)
         {
 			grid->extract_relError();
 
@@ -553,18 +550,21 @@ int LaplaceSolver::computeSolution_GPU(uint maxNumIterations, float errorThresho
                     }
         }
 
-        if(verbose)
-        {
-			printf("\r                                                                    \r");
-			printf("\t\t%u / %u\terror / max error: %E / %E", loopnum, maxNumIterations, maxError, errorThreshold);
-			fflush(stdout);
-        }
+#ifdef VERBOSE
+			cout << "\r                                                                    \r";
+			cout << "\tstep " << loopnum << " / " << maxNumIterations << ", error / threshold: " << toStr(maxError) << " / " << toStr(errorThreshold);
+#endif
 
-        if(maxError < errorThreshold)	break;
+        if(maxError < errorThreshold)
+		{
+#ifdef VERBOSE
+        	cout << "\n";
+#endif
+			break;
+		}
         ++loopnum;
     }
 
-    this->
    	grid->pullFromGPU();
 
    	for(uint i=0;i<grid->numR;++i)

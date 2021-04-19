@@ -22,8 +22,8 @@ Magline::Magline()
 	initNULL();
 }
 
-Magline::Magline(const Magline &other) {
-
+Magline::Magline(const Magline &other)
+{
 	initNULL();
 	init();
 	if(other.numSamples > maxNumPointsPerMagline)
@@ -31,17 +31,15 @@ Magline::Magline(const Magline &other) {
 		cerr << __FILE__ << ":" << __LINE__ << ": Other magline has more data samples that is allowed for this object (" << other.numSamples << ")\n";
 		this->numSamples = maxNumPointsPerMagline;
 	}
-	else
-		this->numSamples = other.numSamples;
-	this->closed 	= other.closed;
-	this->valid	 	= other.valid;
-	this->polarity	= other.polarity;
+	else this->numSamples 	= other.numSamples;
+	this->closed 			= other.closed;
+	this->valid	 			= other.valid;
+	this->polarity			= other.polarity;
 
 	for (uint i=0; i<numSamples; ++i)
 	{
 		this->posdata[i] 	= other.posdata[i];
 		this->magdata[i] 	= other.magdata[i];
-		this->curvature[i]	= other.curvature[i];
 	}
 
 }
@@ -51,11 +49,9 @@ Magline::~Magline() {
 	clear();
 }
 
-Magline &Magline::operator=(const Magline &other) {
-
-	if (this == &other)
-		return *this;
-
+Magline &Magline::operator=(const Magline &other)
+{
+	if (this == &other)	return *this;
 	init();
 	numSamples 	= other.numSamples;
 	closed 		= other.closed;
@@ -66,9 +62,7 @@ Magline &Magline::operator=(const Magline &other) {
 	{
 		this->magdata[i] 	= other.magdata[i];
 		this->posdata[i] 	= other.posdata[i];
-		this->curvature[i]	= other.curvature[i];
 	}
-
 	return *this;
 }
 
@@ -78,27 +72,22 @@ void Magline::init()
 
 	magdata 	= new Vec3D[maxNumPointsPerMagline];
 	posdata		= new Vec3D[maxNumPointsPerMagline];
-	curvature	= new hcFloat[maxNumPointsPerMagline];
-
 }
 
 void Magline::initNULL()
 {
 	magdata 	= NULL;
 	posdata 	= NULL;
-	curvature	= NULL;
-	flag		= 0;
 	closed 		= false;
 	valid 		= false;
 	polarity	= false;
 	numSamples 	= 0;
 }
 
-void Magline::clear() {
-
+void Magline::clear()
+{
 	delete[] magdata;
 	delete[] posdata;
-	delete[] curvature;
 
 	initNULL();
 }
@@ -139,16 +128,14 @@ bool createMaglineOnTheFly(Vec3D &pos, const SphericalGrid &grid,
 
 
 /*! TODO. s.o.
+ * 	return last, not in if-constructs?
  */
 bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned char &error, bool createMagline,
 		Vec3D *poslines, Vec3D *maglines, uint *numSamples, bool direction, bool debug, hcFloat epsMin, hcFloat epsMax)
 {
-	hcFloat upperR 	= grid.upperR;
-	hcFloat lowerR	= grid.lowerR;
-
-	if(debug) printf("Magline::createMaglineOnTheFly_RKF45: direction: %u, lowerR: %E, upperR: %E\n", direction, lowerR, upperR);
-
 	Vec3D B;
+	hcFloat upperR 			= grid.upperR;
+	hcFloat lowerR			= grid.lowerR;
 	unsigned char errorInt 	= 0;
 	error					= 0;
 	bool elliptic			= grid.isElliptical();
@@ -159,12 +146,10 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 	{
 		if(errorInt & 240)	// non-recoverable error
 		{
-			printf("ERROR! Magline::createMaglineOnTheFly_RKF45: Position through which to compute magline is not valid!\n");
-			printf("ERROR! Magline::createMaglineOnTheFly_RKF45: Error: %u, pos(r/theta/phi): %E / %E / %E\n", errorInt, pos[0], pos[1], pos[2]);
+			cerr << __FILE__ << ":" << __LINE__ << ": Position through which to compute magline is not valid. " << "Error: " << errorInt << ", pos(r/theta/phi): " << pos[0] << "/" << pos[1] << "/" << pos[2] << "\n";
 			return false;
 		}
 
-		//if(errorInt & ((1<<1) || (1<<0)))	// position above/below outer/inner boundary
 		if(errorInt & 3)	// position above/below outer/inner boundary
 		{
 			bool upperBoundaryViolated 	= errorInt & (1<<1);
@@ -180,11 +165,11 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 		}
 	}
 
-	if (!valid||errorInt)	{
-		printf("ERROR! Magline::createMaglineOnTheFly_RKF45: The magline could not be followed to the boundary correctly!\nvalid: %u, errorInt = %u\n", valid, errorInt);
-		printf("ERROR! Magline::createMaglineOnTheFly_RKF45: pos(r/theta/phi): %E / %E / %E\n", pos[0], pos[1], pos[2]);		fflush(stdout);
-		error = (1<<2 );
-		return(false);
+	if (!valid||errorInt)
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": The magline could not be followed to the boundary correctly. valid: " << valid << " , error: " << errorInt << ", pos(r/theta/phi): " << pos[0] << "/" << pos[1] << "/" << pos[2] << "\n";
+		error = (1<<2);
+		return false;
 	}
 
 	if( createMagline )
@@ -208,7 +193,7 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 
 	Vec3D pos_old 		= pos;
 	Vec3D pos_old_cart 	= elliptic ? pos.convCoordEll2Cart(egr) : pos.convCoordSpher2Cart();
-	bool validNextPoint = maglineTracingHandler(B, pos, pos_old_cart, pos_old, errorInt, grid, debug);
+	bool validNextPoint = maglineTracingHandler(B, pos, pos_old_cart, pos_old, errorInt, grid);
 	pos_old				= pos;
 	hcFloat hMin		= step / 10;		// the smaller this value, the less invalid maglines will be produced as the interpolation
 	hcFloat h			= hMin;				// will be more accurate at the equatorial region where the magnetic polarity changes
@@ -217,111 +202,79 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 
 	while (++counter<=maxLoop)
 	{
-		validNextPoint 	= maglineTracingHandler(B, pos, pos_old_cart, pos_old, errorInt, grid, debug);
+		validNextPoint 	= maglineTracingHandler(B, pos, pos_old_cart, pos_old, errorInt, grid);
 		pos_old			= pos;
 
 		while(validNextPoint)
 		{
 			Vec3D pos_cart, k1, k2, k3, k4, k5, k6;
-
 			// --------------------------------------------------------------------------------------------------------------------
 			// ----------------------------------------------------------------------------------------------------  RKF45 - step 1
 			// --------------------------------------------------------------------------------------------------------------------
 			pos 			= pos_old;
-			//if(debug) printf("pos: %E/%E/%E\n", pos[0],pos[1],pos[2]);
-			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid, debug);
+			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid);
 			pos_old_cart	= elliptic ? pos.convCoordEll2Cart(egr) : pos.convCoordSpher2Cart();
 			k1 				= sign*(elliptic ? B.convVecEll2Cart(pos_cart, egr) : B.convVecSpher2Cart(pos_cart))*h/B.length();
-			//if(debug)printf("k1: %E/%E/%E\npos: %E/%E/%E\n", k1[0],k1[1],k1[2], pos[0],pos[1],pos[2]);
 			if(!validNextPoint)	break;
 			// --------------------------------------------------------------------------------------------------------------------
 			// ----------------------------------------------------------------------------------------------------  RKF45 - step 2
 			// --------------------------------------------------------------------------------------------------------------------
 			pos 			= pos_old_cart + 1.0 / 4.0 * k1;
 			pos 			= elliptic ? pos.convCoordCart2Ell(egr) : pos.convCoordCart2Spher();
-			//if(debug) printf("pos: %E/%E/%E\n", pos[0],pos[1],pos[2]);
-			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid, debug);
+			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid);
 			k2 				= sign*(elliptic ? B.convVecEll2Cart(pos_cart, egr) : B.convVecSpher2Cart(pos_cart))*h/B.length();
-			//if(debug) printf("k2: %E/%E/%E\npos: %E/%E/%E\n", k2[0],k2[1],k2[2], pos[0],pos[1],pos[2]);
 			if(!validNextPoint)	break;
 			// --------------------------------------------------------------------------------------------------------------------
 			// ----------------------------------------------------------------------------------------------------  RKF45 - step 3
 			// --------------------------------------------------------------------------------------------------------------------
 			pos 			= pos_old_cart + 3.0/32.0 * k1 + 9.0/32.0 * k2;
 			pos 			= elliptic ? pos.convCoordCart2Ell(egr) : pos.convCoordCart2Spher();
-			//if(debug) printf("pos: %E/%E/%E\n", pos[0],pos[1],pos[2]);
-			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid, debug);
+			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid);
 			k3 				= sign*(elliptic ? B.convVecEll2Cart(pos_cart, egr) : B.convVecSpher2Cart(pos_cart))*h/B.length();
-			//if(debug) printf("k3: %E/%E/%E\npos: %E/%E/%E\n", k3[0],k3[1],k3[2], pos[0],pos[1],pos[2]);
 			if(!validNextPoint)	break;
 			// --------------------------------------------------------------------------------------------------------------------
 			// ----------------------------------------------------------------------------------------------------  RKF45 - step 4
 			// --------------------------------------------------------------------------------------------------------------------
 			pos 			= pos_old_cart + 1932.0/2197.0 * k1 - 7200.0/2197.0 * k2 + 7296.0/2197.0 * k3;
 			pos 			= elliptic ? pos.convCoordCart2Ell(egr) : pos.convCoordCart2Spher();
-			//if(debug)	printf("pos: %E/%E/%E\n", pos[0],pos[1],pos[2]);
-			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid, debug);
+			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid);
 			k4 				= sign*(elliptic ? B.convVecEll2Cart(pos_cart, egr) : B.convVecSpher2Cart(pos_cart))*h/B.length();
-			//if(debug) printf("k4: %E/%E/%E\npos: %E/%E/%E\n", k4[0],k4[1],k4[2], pos[0],pos[1],pos[2]);
 			if(!validNextPoint)	break;
 			// --------------------------------------------------------------------------------------------------------------------
 			// ----------------------------------------------------------------------------------------------------  RKF45 - step 5
 			// --------------------------------------------------------------------------------------------------------------------
 			pos 			= pos_old_cart + 439.0/216 * k1 - 8.0 * k2 + 3680.0/513.0 * k3 - 845.0/4104.0 * k4;
 			pos 			= elliptic ? pos.convCoordCart2Ell(egr) : pos.convCoordCart2Spher();
-			//if(debug) printf("pos: %E/%E/%E\n", pos[0],pos[1],pos[2]);
-			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid, debug);
+			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid);
 			k5 				= sign*(elliptic ? B.convVecEll2Cart(pos_cart, egr) : B.convVecSpher2Cart(pos_cart))*h/B.length();
-			//if(debug) printf("k5: %E/%E/%E\npos: %E/%E/%E\n", k5[0],k5[1],k5[2], pos[0],pos[1],pos[2]);
 			if(!validNextPoint)	break;
 			// --------------------------------------------------------------------------------------------------------------------
 			// ----------------------------------------------------------------------------------------------------  RKF45 - step 6
 			// --------------------------------------------------------------------------------------------------------------------
 			pos 			= pos_old_cart - 8.0/27.0 * k1 + 2.0 * k2 - 3544.0/2565.0 * k3 + 1859.0/4104.0 * k4 - 11.0/40.0 * k5;
 			pos 			= elliptic ? pos.convCoordCart2Ell(egr) : pos.convCoordCart2Spher();
-			//if(debug) printf("pos: %E/%E/%E\n", pos[0],pos[1],pos[2]);
-			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid, debug);
+			validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid);
 			k6 				= sign*(elliptic ? B.convVecEll2Cart(pos_cart, egr) : B.convVecSpher2Cart(pos_cart))*h/B.length();
-			//if(debug) printf("k6: %E/%E/%E\npos: %E/%E/%E\n", k6[0],k6[1],k6[2], pos[0],pos[1],pos[2]);
 			if(!validNextPoint)	break;
 			// --------------------------------------------------------------------------------------------------------------------
 			// -------------------------------------------------------------------------------------------------  RKF45 - iteration
 			// --------------------------------------------------------------------------------------------------------------------
-
 			pos 			= pos_old_cart;
 			Vec3D dirY 		= 16.0/135.0 * k1 + 6656.0/12825.0 * k3 + 28561.0/56430.0 * k4 - 9.0/50.0 * k5 + 2.0/55.0 * k6;
 			Vec3D dirZ		= 25.0/216.0 * k1 + 1408.0/2565.0  * k3 + 2197.0/4104.0   * k4 - 1.0/5.0  * k5;
-
-			if(debug)
-			{
-				printf("MaglRKF45: coefficients:\nk1:\t%E\t%E\t%E\nk2:\t%E\t%E\t%E\nk3:\t%E\t%E\t%E\nk4:\t%E\t%E\t%E\nk5:\t%E\t%E\t%E\nk6:\t%E\t%E\t%E\n", k1[0], k1[1], k1[2], k2[0], k2[1], k2[2], k3[0], k3[1], k3[2], k4[0], k4[1], k4[2], k5[0], k5[1], k5[2], k6[0], k6[1], k6[2]);
-				printf("pos(cart): %E/%E/%E, dir: %E/%E/%E\n", pos[0], pos[1], pos[2], dirY[0], dirY[1], dirY[2]);
-			}
-
 			Vec3D posZ		= pos_old_cart;
 			posZ			+= dirZ;
 			pos 			+= dirY;
-
-			if(debug)
-				printf("pos(cart): %E/%E/%E\n", pos[0], pos[1], pos[2]);
-
 			Vec3D distVec	= posZ - pos;
-			float dist		= distVec.length();
-
-			if(debug)
-				printf("MaglRKF45: distance: %E\tstepsize: %E\tminStepsize: %E\tdouble step size?(otherwise half): %s\n", dist, h, hMin, dist < epsMax || h < hMin ? "yes" : "no");
+			hcFloat dist	= distVec.length();
 
 			if(dist < epsMax || h < hMin)							// accuracy demand met
 			{
 				pos 			= elliptic ? pos.convCoordCart2Ell(egr) : pos.convCoordCart2Spher();
-				validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid, debug);
+				validNextPoint	= maglineTracingHandler(B, pos, pos_cart, pos_old, errorInt, grid);
 
 				if((dist < epsMin || h < hMin) && validNextPoint)	// accuracy is so high that we can increase stepsize
 					h = h * 2.0;
-
-				if(debug)
-					printf("MaglRKF45: iteration succesfull, dir: %E/%E/%E pos: %E/%E/%E, counter: %u\n\n",
-							dirY[0], dirY[1], dirY[2], pos[0], pos[1], pos[2], counter);
 
 				break;
 			}
@@ -331,8 +284,6 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 
 		if(!validNextPoint && h > hMin)	// next point lies outside of grid, try reducing step size and recomputing
 		{
-			if(debug)
-				printf("MaglRKF45: Try smaller step (h=%E/%E), r: %E, i: %u\n", h/2.0, hMin, pos_old[0], i);
 			h 	= h/2.0;
 			pos = pos_old;
 			continue;
@@ -349,7 +300,6 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 			}
 			else
 			{
-				//printf("ERROR! Magline::createMaglineOnTheFly_RKF45: Maximum number of samples breached!\n");
 				Vec3D posC	= elliptic ? pos.convCoordEll2Cart(egr) : pos.convCoordSpher2Cart();
 				error 		+= (1 << 1);
 				*numSamples = maxNumPointsPerMagline;
@@ -360,8 +310,6 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 
 		if(!validNextPoint)
 		{
-			if(debug)
-				printf("MaglRKF45: !validNextPoint, break counter: %u/%u\n%E %E %E\n", counter, maxLoop, pos[0], pos[1], pos[2]);
 			valid = true;
 			break;
 		}
@@ -369,13 +317,13 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
 
 	if(i == 1)
 	{
-		printf("ERROR! Magline::createMaglineOnTheFly_RKF4: magnetic field line empty!\n" );
-		error += (1 << 0 );
+		printErrMess(__FILE__, __LINE__, "magnetic field line empty");
+		error += (1 << 0);
 	}
 
 	if(counter >= maxLoop)
 	{
-		printf("ERROR! Magline::createMaglineOnTheFly_RKF45: loopcounter reached. Circular magline?\n");
+		printErrMess(__FILE__, __LINE__, "loopcounter reached, circular magline?");
 		error += (1 << 3);
 		valid = false;
 	}
@@ -392,24 +340,19 @@ bool createMaglineOnTheFly_RKF45(Vec3D &pos, const SphericalGrid &grid,	unsigned
  *
  *  \return true -> everything is fine, nothing to be done, false -> magnetic field requested outside of grid
  */
-
 bool maglineTracingHandler(Vec3D &B, Vec3D &pos, Vec3D &pos_cart, Vec3D pos_old,
-						unsigned char &error, const SphericalGrid &grid, bool debug)
+						unsigned char &error, const SphericalGrid &grid)
 {
-	bool valid			= grid.getInterpolatedB(B, pos, error, debug);
+	bool valid			= grid.getInterpolatedB(B, pos, error);
 	bool elliptic		= grid.isElliptical();
 	EllipticalGrid &egr	= *(EllipticalGrid*)&(const_cast<SphericalGrid&>(grid));
 	pos_cart			= elliptic ? pos.convCoordEll2Cart(egr) : pos.convCoordSpher2Cart();	// cartesian/physical coordinates TODO s.u.
 
 	if (error)
 	{
-		if(debug)
-			printf("maglineTracingHandler: error: %u\n", error);
-
 		if (error & 240) //  pos is outside of grid, not just below lower / above upper boundary
 		{
-			printf("ERROR! maglineTracingHandler: Magfield requested at an invalid position!\n");
-			printf("valid: %u, error: %u, pos(r/theta/phi): %E / %E / %E\n", valid, error, pos[0], pos[1], pos[2]);
+			cerr << __FILE__ << ":" << __LINE__ << ": Magfield requested at invalid position. " << "valid: " << valid << ", error: " << error << ", pos(r/theta/phi): " << pos[0] << "/" << pos[1] << "/" << pos[2] << "\n";
 			return false;
 		}
 
@@ -426,20 +369,17 @@ bool maglineTracingHandler(Vec3D &B, Vec3D &pos, Vec3D &pos_cart, Vec3D pos_old,
 			Vec3D res0, res1;					// find the intersection of magline with boundary sphere
 			if (line.getIntersectionsWithSphere(sphere, res0, res1, hitUpperBoundary) != 2)
 			{
-				printf("ERROR! Magline::maglineTracingHandler: Magline intersects photosphere, though no intersection point could be found!\n");
+				printErrMess(__FILE__, __LINE__, "magline intersects photosphere, though no intersection point could be found (might be low numerical accuracy, ignore this message if it is rare)");
 				return false;
 			}
 			// get the nearest of two (line-sphere) intersection points
 			pos 	= pos_old.dist(res0) < pos_old.dist(res1) ? res0 : res1;
 			pos 	= pos.convCoordCart2Spher();
-			valid 	= grid.getInterpolatedB(B, pos, error, debug);
+			valid 	= grid.getInterpolatedB(B, pos, error);
 
 			if (!valid || error)
 			{
-				printf("ERROR! Magline::maglineTracingHandler: Last step searching for inside point failed!\n");
-				printf("ERROR! Magline::maglineTracingHandler: valid: %u, error: %u, upperR: %E, lowerR: %E\n", valid, error, grid.upperR, grid.lowerR);
-				printf("ERROR! Magline::maglineTracingHandler: Position: %E/%E/%E\n\n", pos[0], pos[1], pos[2]);
-				//valid 	= grid.getInterpolatedB(B, pos, error, true);
+				printErrMess(__FILE__, __LINE__, "Last step searching for inside point failed, valid: " + to_string(valid) + ", error: " + to_string(error) + ", upperR: " + toStr(grid.upperR) + ", lowerR: " + toStr(grid.lowerR) + ", pos(r/theta/phi): " + toStr(pos[0]) + "/" + toStr(pos[1]) + "/" + toStr(pos[2]));
 				return false;
 			}
 			return false;
@@ -455,15 +395,13 @@ bool maglineTracingHandler(Vec3D &B, Vec3D &pos, Vec3D &pos_cart, Vec3D pos_old,
  */
 bool Magline::getValuesAtHeight(hcFloat height, Vec3D &posData, Vec3D &magData)
 {
-	hcFloat eps = 1E-2;
+	hcFloat eps = 1E-2;	// TODO: numerical accuracy per DEFINE ?
 
 	if (height < this->posdata[0][0])
 	{
 		if (fabs(height - this->posdata[0][0]) / this->posdata[0][0] > eps)
 		{
-			printf("ERROR! Magline::getValuesAtHeight(): requested height is below lowest entry in Magline!\n");
-			printf("Height: %E, posdata[0][0]: %E\n", height, posdata[0][0]);
-			printf("relError: %E\n\n", fabs(height - this->posdata[0][0]) / this->posdata[0][0]);
+			cerr << __FILE__ << ":" << __LINE__ << ": requested height(" << height << " is below lowest entry in Magline(" << posdata[0][0] << "). relError=" << fabs(height - this->posdata[0][0]) / this->posdata[0][0] << " \n";
 			return false;
 		}
 		else
@@ -500,18 +438,15 @@ bool Magline::getValuesAtHeight(hcFloat height, Vec3D &posData, Vec3D &magData)
 
 			if (fabs(phi_i - phi_im) > PI)
 			{
-				if (phi_i > phi_im)
-					phi_i -= 2 * PI;
-				else
-					phi_im -= 2 * PI;
+				if (phi_i > phi_im)	phi_i  -= 2 * PI;
+				else				phi_im -= 2 * PI;
 			}
 
 			hcFloat r 		= frac * this->posdata[i - 1][0] 	+ (1 - frac) * this->posdata[i][0];
 			hcFloat theta 	= frac * this->posdata[i - 1][1] 	+ (1 - frac) * this->posdata[i][1];
 			hcFloat phi 	= frac * phi_im 					+ (1 - frac) * phi_i;
 
-			if (phi < 0)
-				phi += 2 * PI;
+			if (phi < 0)phi += 2 * PI;
 
 			hcFloat br 		= frac * this->magdata[i - 1][0] + (1 - frac) * this->magdata[i][0];
 			hcFloat btheta 	= frac * this->magdata[i - 1][1] + (1 - frac) * this->magdata[i][1];
@@ -619,112 +554,6 @@ int Magline::getAllValuesAtHeight(hcFloat height, Vec3D *posData, Vec3D *magData
 	}
 
 	return retval;
-}
-
-bool Magline::computeCurvature()
-{
-	if(numSamples < 2)
-	{
-		//printf("ERROR! magline::getCurvature number of samples (%u) is too low to compute curvature!\n", numSamples);
-		//posdata[0].dump();
-		return false;
-	}
-
-	Vec3D *cartesian= new Vec3D[numSamples];		// cartesian position of samples
-	Vec3D *first 	= new Vec3D[numSamples];		// first derivative of magline
-	Vec3D *second 	= new Vec3D[numSamples];		// second derivative of magline
-
-	for(uint i=0; i<numSamples; ++i)
-		cartesian[i] = posdata[i].convCoordSpher2Cart();
-
-	first[0]			= cartesian[1] 	- cartesian[0];  						// first order forward difference
-	first[0] 			/= first[0].length();
-
-	first[numSamples-1]	= cartesian[numSamples-1] 	- cartesian[numSamples-2];  // first order rearward difference
-	first[numSamples-1] /= first[numSamples-1].length();
-
-	for(uint i=1; i<numSamples-1; ++i)
-	{
-		Vec3D diff0	= cartesian[i]    - cartesian[i-1];
-		Vec3D diff1 = cartesian[i+1]  - cartesian[i];
-		first[i] 	= cartesian[i+1]  - cartesian[i-1];
-		first[i] 	/= diff0.length() + diff1.length();
-	}
-
-	Vec3D diff 				= cartesian[1] - cartesian[0];
-	second[0]				= first[1]	  - first[0];	// first order rearward difference
-	second[0]				/= diff.length();
-
-	diff 					= cartesian[numSamples-1] - cartesian[numSamples-2];
-	second[numSamples-1]	= first[numSamples-1]	  - first[numSamples-2];	// first order rearward difference
-	second[numSamples-1]	/= diff.length();
-
-	for(uint i=1; i<numSamples-1; ++i)
-	{
-		Vec3D diff0  	= cartesian[i] 		- cartesian[i-1];
-		Vec3D diff1  	= cartesian[i+1]	- cartesian[i];
-		second[i]		= first[i+1] 		- first[i-1];
-		second[i]		/= diff0.length() 	+ diff1.length();
-	}
-
-	for(uint i=0; i<numSamples; ++i)
-		curvature[i] = second[i].length();
-
-	delete [] cartesian;
-	delete [] first;
-	delete [] second;
-
-	return true;
-}
-
-/*!
- *
- *  TODO: this only searches for the FIRST height entry in magline, so maglines that go up and then down again
- *  will only return the curvature at the first point where the magline reaches height
- *
- */
-bool Magline::getCurvatureAtHeight(hcFloat height, hcFloat &curvature)
-{
-	hcFloat eps = 1E-2;
-	//printf("Get curvature at height %E\n", height);
-
-	if (height < this->posdata[0][0])
-	{
-		if (fabs(height - this->posdata[0][0]) / this->posdata[0][0] > eps)
-		{
-			printf("ERROR! Magline::getCurvatureAtHeight(): requested height is below lowest entry in Magline!\n");
-			printf("Height: %E, posdata[0][0]: %E, posdata[numSamples-1][0]: %E\n", height, posdata[0][0], posdata[numSamples-1][0]);
-			printf("relError: %E\n\n", fabs(height - this->posdata[0][0]) / this->posdata[0][0]);
-			return false;
-		}
-		else
-		{
-			curvature = this->curvature[0];
-			return true;
-		}
-	}
-
-	for (uint i=1; i < numSamples; ++i)
-	{
-		/*
-		if (this->posdata[i][0] == height)
-		{
-			curvature	= this->curvature[i];
-			return true;
-		}//*/
-
-		if (this->posdata[i][0] >= height)
-		{
-			hcFloat frac 	= (this->posdata[i][0] - height) / (this->posdata[i][0] - this->posdata[i-1][0]);
-			curvature		= frac * this->curvature[i-1] + (1 - frac) * this->curvature[i];
-
-			//printf("height: %E, i: %u, height[i]: %E, height[i-1]: %E, frac: %E, curvature: %E\n", height, i, this->posdata[i][0], this->posdata[i-1][0], frac, curvature);
-			return true;
-		}
-	}
-
-	//printf("ERROR! Magline::getValuesAtHeight(): for some reason, the requested height has not been found! This should not be possible!\n");
-	return false;
 }
 
 /*! produces the magnetic and positional values of a magnetic field line.
@@ -892,26 +721,20 @@ unsigned char Magline::createMaglineThroughPos(	SphericalGrid &grid, const Vec3D
 	}
 
 	polarity = magdata[0][0] > 0.0 ? true : false;
-
-	computeCurvature();
-
-	// here data is still stored in computational coordinates
-	return error;
+	return error;		// here data is still stored in computational coordinates
 }
 
-Vec3D Magline::getMagVec(uint num) {
-
-	if (num < numSamples)
-		return magdata[num];
+Vec3D Magline::getMagVec(uint num)
+{
+	if (num < numSamples) return magdata[num];
 
 	printf("ERROR! Magline::getMagVec: requested index (%u) out of bounds (numSamples: %u)!\n",	num, numSamples);
 	return Vec3D(0.0, 0.0, 0.0);
 }
 
-Vec3D Magline::getPosVec(uint num) {
-
-	if (num < numSamples)
-		return posdata[num];
+Vec3D Magline::getPosVec(uint num)
+{
+	if (num < numSamples) return posdata[num];
 
 	printf("ERROR! Magline::getPosVec: requested index (%u) out of bounds (numSamples: %u)!\n",	num, numSamples);
 	return Vec3D(0.0, 0.0, 0.0);
@@ -924,8 +747,8 @@ Vec3D Magline::getPosVec(uint num) {
  *  \return true, if distance at the lower boundary is less than distance at upper boundary, false otherwise
  *
  */
-bool Magline::lowerDistLTupperDist(const Magline &other) {
-
+bool Magline::lowerDistLTupperDist(const Magline &other)
+{
 	float eps = 1E-5;
 
 	if (!this->valid || !other.valid) {
@@ -969,112 +792,66 @@ bool Magline::isInSameFluxtubeAs(const Magline &other) {
 	return lowerDistLTupperDist(other);
 }
 
-bool Magline::exportBinary(char **array)
+
+bool Magline::exportBinary(std::ofstream &stream)
 {
-	if(numSamples > maxNumPointsPerMagline)
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": numSamples(" << numSamples << ") in saved file exceeds maximum(" << maxNumPointsPerMagline << ")\n";
-	}
-	//                     magdata + posdata               	+ curvature						+ closed + valid   + numBytes
-	uint numBytes = numSamples * 2 * 3 * sizeof(hcFloat) 	+ numSamples * sizeof(hcFloat)	+ 2 * sizeof(bool) + sizeof(uint);
-	*array = new char[numBytes];
-	memset(*array, '0', numBytes);
+	bool retval 		= true;
+	uint sizeofFloat	= sizeof(hcFloat);
+	stream.write(reinterpret_cast<char*>(&sizeofFloat),	sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&numSamples),	sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&valid),		sizeof(bool));
+	stream.write(reinterpret_cast<char*>(&closed),		sizeof(bool));
+	stream.write(reinterpret_cast<char*>(&polarity),	sizeof(bool));
 
-	uint index = 0;
-	memcpy(*array + index, &numBytes, sizeof(uint));
-	index += sizeof(uint);
-	memcpy(*array + index, &valid, sizeof(bool));
-	index += sizeof(bool);
-	memcpy(*array + index, &closed, sizeof(bool));
-	index += sizeof(bool);
-
-	for (uint i = 0; i < numSamples; ++i)
-	{
-		for (uint k = 0; k < 3; ++k)
+	for (uint i=0; i<numSamples; ++i)
+		for (uint k=0; k<3; ++k)
 		{
-			memcpy(*array + index, &posdata[i](k), sizeof(hcFloat));
-			index += sizeof(hcFloat);
+			stream.write(reinterpret_cast<char*>(&posdata[i](k)), sizeofFloat);
+			stream.write(reinterpret_cast<char*>(&magdata[i](k)), sizeofFloat);
 		}
 
-		for (uint k = 0; k < 3; ++k)
-		{
-			memcpy(*array + index, &magdata[i](k), sizeof(hcFloat));
-			index += sizeof(hcFloat);
-		}
-	}
-
-	memcpy(*array + index, &curvature[0], numSamples * sizeof(hcFloat));
-	index += numSamples * sizeof(hcFloat);
-
-	return true;
+	return retval;
 }
 
-// TODO: float vs double
-bool Magline::importBinary(char *array)
+bool Magline::importBinary(std::ifstream &stream)
 {
-	clear();
-
-	uint index = 0;
-	uint numBytes;
-	memcpy(&numBytes, array + index, sizeof(uint));
-	index += sizeof(uint);
-
-	uint numSamples = (numBytes - sizeof(uint) - 2 * sizeof(bool)) / ( 2 * 3 + 1 ) / sizeof(hcFloat); // see exportBinary
-
 	init();
-	this->numSamples = numSamples;
-	if(numSamples > maxNumPointsPerMagline)
-	{
-		cout << __FILE__ << "/" << __LINE__ << ": numSamples(" << numSamples << ") in saved file exceeds maximum(" << maxNumPointsPerMagline << ")\n";
-		return false;
-		fflush(stdout);
-	}
-	memcpy(&valid, array + index, sizeof(bool));
-	index += sizeof(bool);
-	memcpy(&closed, array + index, sizeof(bool));
-	index += sizeof(bool);
 
-	for (uint i = 0; i < numSamples; ++i)
-	{
-		for (uint k = 0; k < 3; ++k)
+	bool retval 		= true;
+	uint sizeoffloat	= 0;
+	stream.read(reinterpret_cast<char*>(&sizeoffloat),	sizeof(uint));
+	if(sizeoffloat != 4 && sizeoffloat != 8) return false;
+	char *tempFloat		= sizeoffloat == 4 ? reinterpret_cast<char*>(new float()): reinterpret_cast<char*>(new double());
+	stream.read(reinterpret_cast<char*>(&numSamples),	sizeof(uint));
+	stream.read(reinterpret_cast<char*>(&valid),		sizeof(bool));
+	stream.read(reinterpret_cast<char*>(&closed),		sizeof(bool));
+	stream.read(reinterpret_cast<char*>(&polarity),		sizeof(bool));
+
+	for (uint i=0; i<numSamples; ++i)
+		for (uint k=0; k<3; ++k)
 		{
-			memcpy(&posdata[i](k), array + index, sizeof(hcFloat));
-			index += sizeof(hcFloat);
+			stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); posdata[i](k) = *(reinterpret_cast<hcFloat*>(tempFloat));
+			stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); magdata[i](k) = *(reinterpret_cast<hcFloat*>(tempFloat));
 		}
 
-		for (uint k = 0; k < 3; ++k)
-		{
-			memcpy(&magdata[i](k), array + index, sizeof(hcFloat));
-			index += sizeof(hcFloat);
-		}
-	}
-
-	memcpy(&curvature[0], array + index, numSamples * sizeof(hcFloat));
-	index += numSamples * sizeof(hcFloat);
-
-	if(valid && !closed) polarity = magdata[0][0] > 0.0;
-
-	return true;
+	delete tempFloat;
+	return retval;
 }
 
-void Magline::dump() const {
-
-	printf("Magline::dump():\n");
+void Magline::dump() const
+{
+	cout << "Magline::dump():\n";
 	for (uint i = 0; i < numSamples; ++i)
-		printf("i: %u, height: %E\n", i, posdata[i][0]);
-	printf("Number of samples:\t%u\n", numSamples);
-	printf("Magline valid:\t\t%u\n", valid);
-	printf("Magline closed:\t\t%u\n", closed);
-	printf("Position at lower boundary:\n");
-	if (numSamples > 0)
-		posdata[0].dump();
-	else
-		printf("No data\n");
-	printf("Magnetic field at lower boundary:\n");
-	if (numSamples > 0)
-		 magdata[0].dump();
-	else
-		printf("No data\n");
+		cout << "i: " << i << ", height: " << posdata[i][0] 	<< "\n";
+	cout << "Number of samples: " << numSamples 				<< "\n";
+	cout << "Magline valid:     " << valid 						<< "\n";
+	cout << "Magline closed:    " << closed 					<< "\n";
+	cout << "Position at lower boundary:\n";
+	if (numSamples > 0)	posdata[0].dump();
+	else				cout << "No data\n";
+	cout << "Magnetic field at lower boundary:\n";
+	if (numSamples > 0) magdata[0].dump();
+	else				cout << "No data\n";
 }
 
 void Magline::initStaticMembers()

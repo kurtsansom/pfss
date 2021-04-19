@@ -65,7 +65,6 @@ bool PFSSsolutionInfo::operator==(const PFSSsolutionInfo &other)
 {
 	bool retval = true;
 	retval &= SynopticInfo::operator==(other);
-	//retval &= sizeofFloat 	== other.sizeofFloat;
 	retval &= rss			== other.rss;
 	retval &= ell			== other.ell;
 	retval &= orderSHC		== other.orderSHC;
@@ -116,26 +115,6 @@ bool PFSSsolutionInfo::operator>(const PFSSsolutionInfo &other)
 bool PFSSsolutionInfo::operator<(const PFSSsolutionInfo &other)
 {
 	return !(operator>(other) || operator==(other));
-	/*
-	if(		rss < other.rss)			return true;
-	else if(rss > other.rss)			return false;
-
-	if(		ell < other.ell)			return true;
-	else if(ell > other.ell)			return false;
-
-	if(		orderSHC < other.orderSHC)	return true;
-	else if(orderSHC > other.orderSHC)	return false;
-
-	if(		numR < other.numR)			return true;
-	else if(numR > other.numR)			return false;
-
-	if(		numTheta < other.numTheta)	return true;
-	else if(numTheta > other.numTheta)	return false;
-
-	if(		numPhi < other.numPhi)		return true;
-	else if(numPhi > other.numPhi)		return false;
-
-	return false;//*/
 }
 
 void PFSSsolutionInfo::initNULL()
@@ -174,6 +153,50 @@ void PFSSsolutionInfo::init(SynopticInfo synInf, uint sizeofFloat, modelID model
 	this->numPhi		= numPhi;
 }
 
+bool PFSSsolutionInfo::exportBinary(std::ofstream &stream)
+{
+	bool retval = true;
+	stream.write(reinterpret_cast<char*>(&sizeofFloat),		sizeof(uint));
+	SynopticInfo::exportBinary(stream);
+	stream.write(reinterpret_cast<char*>(&model),			sizeof(int));
+	stream.write(reinterpret_cast<char*>(&method),			sizeof(int));
+	stream.write(reinterpret_cast<char*>(&group),			sizeof(int));
+	stream.write(reinterpret_cast<char*>(&rss),				sizeofFloat);
+	stream.write(reinterpret_cast<char*>(&ell),				sizeofFloat);
+	stream.write(reinterpret_cast<char*>(&orderSHC), 		sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&numR), 			sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&numTheta), 		sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&numPhi), 			sizeof(uint));
+	retval &= dateComputed.exportBinary(stream);
+	stream.write(reinterpret_cast<char*>(&computationTime), sizeof(uint));
+	stream.write(reinterpret_cast<char*>(&solutionSteps), 	sizeof(uint));
+	return retval;
+}
+
+bool PFSSsolutionInfo::importBinary(std::ifstream &stream)
+{
+	bool retval = true;
+	uint sizeoffloat	= 0;
+	stream.read(reinterpret_cast<char*>(&sizeoffloat),	sizeof(uint));
+	if(sizeoffloat != 4 && sizeoffloat != 8) return false;
+	char *tempFloat		= sizeoffloat == 4 ? reinterpret_cast<char*>(new float()): reinterpret_cast<char*>(new double());
+	SynopticInfo::importBinary(stream);
+	stream.read(reinterpret_cast<char*>(&model),			sizeof(int));
+	stream.read(reinterpret_cast<char*>(&method),			sizeof(int));
+	stream.read(reinterpret_cast<char*>(&group),			sizeof(int));
+	stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); rss = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
+	stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); ell = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
+	stream.read(reinterpret_cast<char*>(&orderSHC), 		sizeof(uint));
+	stream.read(reinterpret_cast<char*>(&numR), 			sizeof(uint));
+	stream.read(reinterpret_cast<char*>(&numTheta), 		sizeof(uint));
+	stream.read(reinterpret_cast<char*>(&numPhi), 			sizeof(uint));
+	retval &= dateComputed.importBinary(stream);
+	stream.read(reinterpret_cast<char*>(&computationTime), sizeof(uint));
+	stream.read(reinterpret_cast<char*>(&solutionSteps), 	sizeof(uint));
+	delete tempFloat;
+	return retval;
+}
+
 string PFSSsolutionInfo::toString() const
 {
 	stringstream retval;
@@ -191,23 +214,25 @@ string PFSSsolutionInfo::toString() const
 	return retval.str();
 }
 
-void PFSSsolutionInfo::dump() const
+void PFSSsolutionInfo::dump(uint indent) const
 {
-	cout << "Dumping PFSSsolutionInfo:\n";
-	SynopticInfo::dump();
+	stringstream ind;
+	if(indent > 0) ind << setw(indent) << setfill(' ') << " ";
+	cout << ind.str() << "Dumping PFSSsolutionInfo:\n";
+	SynopticInfo::dump(indent+1);
 	cout << left;
-    cout << setw(20) << setfill(' ') << "float:" <<(sizeofFloat==4?"single":(sizeofFloat==8?"double":(sizeofFloat==16?"long double":"unknown"))) << "\n";
-    cout << setw(20) << setfill(' ') << "Model:"			<< getStringFromModelID(model)		<< "\n";
-    cout << setw(20) << setfill(' ') << "Group:"			<< getStringFromGroupID(group)		<< "\n";
-    cout << setw(20) << setfill(' ') << "Method:"			<< getStringFromMethodID(method)	<< "\n";
-    cout << setw(20) << setfill(' ') << "rss:"				<< rss / r_sol						<< "\n";
-    cout << setw(20) << setfill(' ') << "ell:"				<< ell								<< "\n";
-    cout << setw(20) << setfill(' ') << "orderSHC:"			<< orderSHC							<< "\n";
-    cout << setw(20) << setfill(' ') << "numR:"				<< numR								<< "\n";
-    cout << setw(20) << setfill(' ') << "numT:"				<< numTheta							<< "\n";
-    cout << setw(20) << setfill(' ') << "numP:"				<< numPhi							<< "\n";
-    cout << setw(20) << setfill(' ') << "dailyID:"			<< dailyID							<< "\n";
-    cout << setw(20) << setfill(' ') << "compTime:"			<< computationTime					<< "\n";
-    cout << setw(20) << setfill(' ') << "timestamp:"		<< dateComputed.toSpiceString()		<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "float:" <<(sizeofFloat==4?"single":(sizeofFloat==8?"double":(sizeofFloat==16?"long double":"unknown"))) << "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "Model:"			<< getStringFromModelID(model)		<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "Group:"			<< getStringFromGroupID(group)		<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "Method:"			<< getStringFromMethodID(method)	<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "rss:"				<< rss / r_sol						<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "ell:"				<< ell								<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "orderSHC:"		<< orderSHC							<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "numR:"			<< numR								<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "numT:"			<< numTheta							<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "numP:"			<< numPhi							<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "dailyID:"			<< dailyID							<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "compTime:"		<< computationTime					<< "\n";
+    cout << ind.str() << setw(20) << setfill(' ') << "timestamp:"		<< dateComputed.toSpiceString()		<< "\n";
     fflush(stdout);
 }

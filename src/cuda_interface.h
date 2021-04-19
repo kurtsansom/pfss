@@ -3,6 +3,10 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <string>
+#include <iostream>
+
+using namespace std;
 
 
 // this assumes CUDA compute capability >= 1.2
@@ -30,6 +34,9 @@
 #define MAX_NUM_BLOCK 10000;
 
 void checkCUDAerror(const char *msg);
+
+/*! \brief checks for any errors related to CUDA and exits, if there are any (you need to fix this or stop using CUDA)	*/
+void checkCUDAerror(const string &file, const int &line);
 
 #ifdef __NVCC__
 __host__ __device__

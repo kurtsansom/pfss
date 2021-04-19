@@ -660,6 +660,13 @@ int128 hcDate::getUnixTime() const
 	return result;
 }
 
+string hcDate::getTOD() const
+{
+	hcDate date = *this;
+	date.convert2(HC_UTC);
+	return(boost::str(format("%02i:%02i:%02i") % date.hour % date.minute % date.second));
+}
+
 void hcDate::setFromInternalTT()
 {
 	bool thisIsLeapSecond = isLeapSec();

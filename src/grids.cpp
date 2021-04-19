@@ -49,11 +49,11 @@ SphericalGrid &SphericalGrid::operator=(const SphericalGrid &other)
     temp        	= new hcFloat[numGridPoints];
     relError    	= new hcFloat[numGridPoints];
 
-    memcpy(pos,     other.getPosArray(),      	numGridPoints * sizeof(Vec3D));
-    memcpy(B,   	other.getBArray(),    		numGridPoints * sizeof(Vec3D));
-    memcpy(psi,     other.getPsiArray(),      	numGridPoints * sizeof(hcFloat));
-    memcpy(relError,other.getRelErrorArray(), 	numGridPoints * sizeof(hcFloat));
-    memcpy(temp,    other.getTempArray(),     	numGridPoints * sizeof(hcFloat));
+    memcpy((char*)pos,  (char*)other.getPosArray(),     numGridPoints * sizeof(Vec3D));
+    memcpy((char*)B,   	(char*)other.getBArray(),    	numGridPoints * sizeof(Vec3D));
+    memcpy((char*)psi,  (char*)other.getPsiArray(),     numGridPoints * sizeof(hcFloat));
+    memcpy(relError,	other.getRelErrorArray(), 		numGridPoints * sizeof(hcFloat));
+    memcpy(temp,    	other.getTempArray(),     		numGridPoints * sizeof(hcFloat));
 
     return *this;
 }
@@ -316,6 +316,7 @@ void SphericalGrid::getScalingFactors()
 				uint ind_ijkm  	= 				  	  getIndex(i,	j,	 km);
 				uint ind_ijkp  	= 				  	  getIndex(i,	j,	 kp);
 
+				/*
 				uint ind_imjmk	= j==0		? 0		: getIndex(i-1,	j-1, k );
 				uint ind_imjpk	= j==numT-1	? 0		: getIndex(i-1,	j+1, k );
 				uint ind_ipjmk	= j==0		? 0		: getIndex(i+1,	j-1, k );
@@ -329,7 +330,7 @@ void SphericalGrid::getScalingFactors()
 				uint ind_ijmkm	= j==0		? 0		: getIndex(i,	j-1, km);
 				uint ind_ijmkp	= j==0		? 0		: getIndex(i,	j-1, kp);
 				uint ind_ijpkm	= j==numT-1	? 0		: getIndex(i,	j+1, km);
-				uint ind_ijpkp	= j==numT-1	? 0		: getIndex(i,	j+1, kp);
+				uint ind_ijpkp	= j==numT-1	? 0		: getIndex(i,	j+1, kp);//*/
 
 				Vec3D pos_ijk	= pos[ind];
 
@@ -403,8 +404,6 @@ void SphericalGrid::getScalingFactors()
 									+  t_rp*(dr_m2-dr_p2)*(dp_m2-dp_p2)
 									+  t_tp*(dt_m2-dt_p2)*(dp_m2-dp_p2)
 									- 2*p[ind](0,0)*Cr*(dr_p+dr_m) - 2*p[ind](1,1)*Ct*(dt_p+dt_m) - 2*p[ind](2,2)*Cp*(dp_p+dp_m);
-
-				//printf("%u %u %u %E %E\n", i,j,k, dr_p, pos_ipjk[0]);
 
 				this->s_ijk[ind]	= s_ijk;
 				this->s_imjk[ind] 	= s_imjk;
@@ -610,18 +609,19 @@ bool SphericalGrid::exportEntireGrid(const char *filename)
 
 bool SphericalGrid::importEntireGrid(const char *filename)
 {
-    if(!checkFileEx(filename, "SphericalGrid::importEntireGrid"))
-        return false;
+    if(!checkFileEx(filename, "SphericalGrid::importEntireGrid")) return false;
+
+    hcDate start, end;
+    start.setFromSystemTime();
 
     std::ifstream solutionFile;
     solutionFile.open(filename, std::ios::in | std::ios::binary);
 
     solutionFile.read(reinterpret_cast<char*>(&sizeofFloat), sizeof(uint));
-    if(sizeofFloat != 4 && sizeofFloat != 8 && sizeofFloat != 16)			// just in case file has been stored using old scheme
+    if(sizeofFloat != 4 && sizeofFloat != 8)
     {
-    	solutionFile.close();
-        solutionFile.open(filename, std::ios::in | std::ios::binary);
-        sizeofFloat = 4;
+    	cerr << __FILE__ << ":" << __LINE__ << ": sizeoffloat==" << sizeofFloat << " not supported.\n";
+    	return false;
     }
 
     if(sizeof(hcFloat)==sizeofFloat)
@@ -697,6 +697,8 @@ bool SphericalGrid::importEntireGrid(const char *filename)
     	}
     }
     solutionFile.close();
+
+    end.setFromSystemTime();
 
     return true;
 }
@@ -843,24 +845,23 @@ bool SphericalGrid::evaluateCSSS(const char *filename)
 
 void SphericalGrid::dump() const
 {
-	printf("Dumping SphericalGrid:--------------------------------\n");
-    printf("numR:\t\t%u\n", numR);
-    printf("numTheta:\t%u\n", numTheta);
-    printf("numPhi:\t\t%u\n", numPhi);
-
-    printf("numGridPoints:\t%u\n", numGridPoints);
-
-    printf("sinLatGrid:\t%u\n", sinLatGrid);
-    printf("maxSinLat:\t%E\n", maxSinLat);
-    printf("minSinLat:\t%E\n", minSinLat);
-
-    printf("lowerR:\t%E\n", lowerR);
-    printf("upperR:\t%E\n", upperR);
-    printf("geometricFactor:\t%E\n", geometricFactor);
+	cout << "Dumping SphericalGrid:\n";
+	cout << "floating point prec.: " << (sizeofFloat==4?"single\n":(sizeofFloat==8?"double\n":"unknown\n"));
+    cout << "numR:                 " << numR 			<< "\n";
+    cout << "numTheta:             " << numTheta		<< "\n";
+    cout << "numPhi:               " << numPhi			<< "\n";
+    cout << "numGridPoints:        " << numGridPoints 	<< "\n";
+    cout << "sinLatGrid:           " << sinLatGrid		<< "\n";
+    cout << "maxSinLat:            " << maxSinLat		<< "\n";
+    cout << "minSinLat:            " << minSinLat		<< "\n";
+    cout << "lowerR:               " << lowerR			<< "\n";
+    cout << "upperR:               " << upperR			<< "\n";
+    cout << "geometricFactor:      " << geometricFactor	<< "\n";
 #ifdef CUDA
     printf("OnDevice: %u\n", onDevice);
 #endif
 }
+
 void SphericalGrid::dumpCoords(uint fixed, bool ellipticCoords) const
 {
 	printf("----- Dumping coords of Spherical Grid in spherical coords and converted to cartesian\n");

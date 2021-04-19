@@ -18,7 +18,6 @@
 class PFSSsolution{
 public:
 
-	string outDir;					/*!< \brief the directory to store solution specific data into				*/
 	methodID method;				/*!< \brief SHC, numeric spheric or numeric elliptic						*/
 
     LaplaceSolver solver;           /*!< \brief the actual solver                       						*/
@@ -27,11 +26,14 @@ public:
 
     PFSSsolution();                             /*!< \brief std constructor             						*/
     PFSSsolution(const PFSSsolution &other);    /*!< \brief cpy constructor             						*/
-    virtual ~PFSSsolution(){}
+    virtual ~PFSSsolution(){}					/*!< \brief destructor											*/
 
     void initNULL();
     void clear();
     void init();
+
+    bool isDirSet();
+    	/*!< \brief checks if output directory is set															*/
 
     string getFilenamePhotMagfield();
     	/*!< \brief get filename for photospheric synoptic magfield file										*/
@@ -43,8 +45,10 @@ public:
     	/*!< \brief get filename for configuration file															*/
 
     PFSSsolution &operator=(const PFSSsolution &other);
+    	/*!< \brief assignment operator																			*/
 
     LaplaceSolver &getSolver();
+    	/*!< \brief returns reference to solver member variable													*/
 
     bool loadPhotBoundary(const string &filename, uint seed=0, uint scaleMethod=7);
         /*!< \brief loads magnetic map of photosphere and initializes this object       						*/
@@ -67,10 +71,10 @@ public:
     		bool sinLatFormat, bool computationalCoords, bool exportASCII);
     	/*!< \brief routine for computing magnetic height maps in memory										*/
 
-    void getMagneticMappingFilename(const MagMapping &magmap, char *filename);
+    string getMagneticMappingFilename(const MagMapping &magmap);
     	/*!< \brief getting filename for export/import of magnetic mappings										*/
 
-    bool setOutDir(const string &outDir);
+    //bool setOutDir(const string &outDir);
 		/*!< sets output directory for solution storage															*/
 
     bool multiMapSolution(	uint numTheta, uint numPhi, bool computeIntermediateHeightLevels,
@@ -81,8 +85,6 @@ public:
     		uint compRadialRes, uint imgThetaRes, uint imgPhiRes, bool mapIntermediateHeights);
     	/*!< \brief loads Bala CSSS file and computes mapping (TODO: not working so far)						*/
 
-    void filterPhotMaps(const char *inDir);
-
     bool computeAndMapKielSHC(const string &filename, uint order, hcFloat r_ss,
     		uint compResR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights);
     	/*!< \brief computes spherical harmonic coefficients for given photospheric magfield					*/
@@ -92,7 +94,7 @@ public:
 			hcFloat ellipticity, uint scaleMethod=7);
     	/*!< \brief computes and maps Kiel grid approach														*/
 
-    bool loadAndMapKielGrid(const char *filename, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights);
+    bool loadAndMapKielGrid(const string &filename, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights=false);
 		/*!< \brief loads Kiel grid solution and computes mapping												*/
 
 	bool loadAndMapStanfordSHC(const char *photFilename, const char *StanfordCoeffFilename,
@@ -107,14 +109,12 @@ public:
 			uint compResR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights);
 		/*!< \brief computes and maps Kiel SHC approach for all files in inDir									*/
 
-	bool batchKielGrid(const string &inDir, hcFloat r_ss, uint compResR,
+	bool batchKielGrid(const string &inDir, hcFloat r_ss, uint resCompR,
 			uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights, hcFloat surfShapeA);
 		/*!< \brief computes and maps Kiel grid approach for all files in inDir									*/
 
-	void paramStudyNoise(const char *inDir,
-			uint compRadialRes, uint compThetaRes, uint compPhiRes,
-			uint imgThetaRes,   uint imgPhiRes, uint numNoiseComputations);
-		/*!< \brief analyses impact of noise on solver															*/
+	bool batchMap(uint resMapTheta, uint resMapPhi, bool mapIntermediateHeights);
+		/*!< \brief compute maps for all computes solutions in dirData											*/
 
 	void paramStudyThresh(const char *inDir,
 			uint compRadialRes, uint compThetaRes, uint compPhiRes,
