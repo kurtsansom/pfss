@@ -283,7 +283,7 @@ bool PFSSsolution::computeKielGrid(const string &filename, const string &optiona
 {
 	if (!doesFileExist(filename))
 	{
-		cerr << __FILE__ << ":" << __LINE__ << ":  file\n\t'" << filename << "'\n\tdoes not exist.\n";
+		printErrMess(__FILE__, __LINE__, "file '" + filename + "' does not exist.");
 		return false;
 	}
 

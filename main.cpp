@@ -267,39 +267,50 @@ int main(int argc, char **argv)
  *  Commands are given via command line arguments to the PFSS suite, e.g. pfss \-\-compute ./synop2066.fits for computing the PFSS model with standard
  *  parameters for the Carrington rotation given in synop2066.fits. Several solar observatories are supported and automatically recognized.
  *
- *  Commands and their options are:
+ *  \tableofcontents
  *
- *  \-\-config filename
+ *  # Running the program
  *
- *  filename is path to configuration file, [default: \-\-config ../config/config]
+ *  If you used make to build the PFSS computation suite, the binary file will be stored in pfss/bin/. The pfss reads a configuration file, which speciefies the data and configuration directories.
+ *  The configuration directory contains information about start and stop times of Carrington rotations. The data directory contains all the output from the PFSS computation suite. If you run the binary from the pfss/bin/ directory without
+ *  specifying a configuration file, the default file pfss/config/config will be used. The default data directoy is then pfss/data. Please consult this default config file to set your own data directoy at a location with enough disk space
+ *  if the default location is not suitable. Absolut paths in your config file allows the binary to be executed from arbitrary shell locations.
  *
- *  \-\-compute filename
+ *  An example execution might be
  *
- *	Invokes the PFSS solver for given photospheric magnetogram found at path filename (for supported observatories see above).
+ *  	cd pfss/bin
+ *  	./pfss --compute ../data/input/synop_Ml_0.2066.fits
  *
- *	Support arguments:
+ *   \-\- **config** _filename_
  *
- *	\-\-rss value			source surface height (in solar radii), value is floating point\n
- *	\-\-ell value			ellipticity of source surface, value is floating point, [default: 1.0 (spheric)]\n
- *	\-\-resCompR value	computational grid resolution in radial direction, other directions are determined automatically,
- *							value is unsigned integer
+ *  _filename_ is path to configuration file [default: \-\-config ../config/config]
  *
- *	\-\-map filename
+ *  \-\- **compute** _filename_
  *
- *	Computes the magnetic configuration at specified height (default: photosphere and source surface)
+ *	Invokes the PFSS solver for given photospheric magnetogram at path _filename_. For additional arguments see below.
  *
- *	Support arguments:
+ *	 *	\-\- **map** _filename_
  *
- *	\-\-resMapTheta value		resolution of mapping in meridional direction, value is unsigned integer\n
- *	\-\-resMapPhi value		resolution of mapping in zonal direction, value is unsigned integer\n
+ *	Computes the magnetic configuration at specified height [default: photosphere and source surface]. For additional arguments see below.
  *
- *	\-\-batchcompute directory
+ *	 *	\-\- **batchcompute** _directory_
  *
- *	Invokes the PFSS solver for all magnetic magnetograms found in directory (non-recursive)
+ *	Invokes the PFSS solver for all magnetic magnetograms found in _directory_ (non-recursive).
  *
- *	Support arguments: see \-\-compute filename
- *
- *	\-\-batchmap
+ *	\-\- **batchmap**
  *
  *	Invokes mapper for all solutions computed in data directory.
+ *
+ *	**Additional arguments for compute**
+ *
+ *	\-\- **rss** _value_		source surface height (in solar radii), _value_ is floating point\n
+ *	\-\- **ell** _value_		ellipticity of source surface, _value_ is floating point, [default: 1.0 (spheric)]\n
+ *	\-\- **resCompR** _value_	computational grid resolution in radial direction, other directions are determined automatically,
+ *								_value_ is unsigned integer
+ *
+ *	**Additional arguments for map**
+ *
+ *	\-\-resMapTheta value		resolution of mapping in meridional direction, value is unsigned integer\n
+ *	\-\-resMapPhi value			resolution of mapping in zonal direction, value is unsigned integer\n
+ *
  */
