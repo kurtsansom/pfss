@@ -167,6 +167,12 @@ string getFilename_magMappingExpansion(	const PFSSsolutionInfo &info, hcFloat he
 	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_expansion.fits");
 }
 
+string getFilename_magMappingMagfield(	const PFSSsolutionInfo &info, hcFloat height,
+										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
+{
+	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_br.fits");
+}
+
 string getFilename_magMappingExpansionBitmap(	const PFSSsolutionInfo &info, hcFloat height,
 												bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
 {

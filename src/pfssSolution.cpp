@@ -431,11 +431,13 @@ bool PFSSsolution::mapHeightLevel(
 
 	stringstream filenameAscii, filenameMap, filenameImg, filenameFootImg, filenameExpansion, filenameExpBitmap;
 	string oDir	= dirData + "/" + to_string(info.CRnum) + "/";
+	string filenameMagfield;
 	filenameAscii		<< oDir << getFilename_magMappingASCII(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
 	filenameMap			<< oDir << getFilename_magMappingBin(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
 	filenameImg			<< oDir << getFilename_magMappingImg(				info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
 	filenameFootImg		<< oDir << getFilename_magMappingFootImg(			info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
 	filenameExpansion	<< oDir << getFilename_magMappingExpansion(			info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
+	filenameMagfield	= oDir + getFilename_magMappingMagfield(			info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
 	filenameExpBitmap	<< oDir << getFilename_magMappingExpansionBitmap(	info, height, sinLatGrid, compCoords, numTheta_m, numPhi_m);
 
 	MagMapping map;
@@ -444,7 +446,7 @@ bool PFSSsolution::mapHeightLevel(
 		printStdOutMess(__FILE__, __LINE__, "map at height " + toStr(height) + " m does already exist, skip computation.");
 		if(!map.importBinary(filenameMap.str().data()))
 		{
-			cerr << __LINE__ << "/" << __FILE__ << ": file " << filenameMap.str() << " cannot be loaded.\n";
+			printErrMess(__FILE__, __LINE__, "file " + filenameMap.str() + " cannot be loaded");
 			return false;
 		}
 	}
@@ -460,7 +462,7 @@ bool PFSSsolution::mapHeightLevel(
 	map.exportImage(filenameImg.str());
 	//map.exportFootpointImage(filenameFootImg);
 	map.exportExpansionFactorImage(solver.grid, filenameExpansion.str(), filenameExpBitmap.str());
-
+	map.exportMagfieldImage(solver.grid, filenameMagfield);
     return true;
 }
 

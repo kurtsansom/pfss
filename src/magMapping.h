@@ -133,6 +133,9 @@ public:
     bool exportExpansionFactorImage(SphericalGrid *grid, const string &fn_fits, const string &fn_bitmap);
         /*!< \brief export expansion factor of magnetic field lines in this map								*/
 
+    bool exportMagfieldImage(SphericalGrid *grid, const string &fn_fits);
+    	/*!< \brief export magnetic field at this map														*/
+
     void dump(uint indent=0);
     	/*!< \brief dumps information on instance to stdout with optional indentation						*/
 

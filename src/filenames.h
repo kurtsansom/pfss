@@ -57,6 +57,10 @@ string getFilename_magMappingExpansion(	const PFSSsolutionInfo &info, hcFloat he
 										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
 	/*!< \brief returns filename for magnetic flux tube expansion factor image														*/
 
+string getFilename_magMappingMagfield(	const PFSSsolutionInfo &info, hcFloat height,
+										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
+	/*!< \brief returns filename for magnetic field image																			*/
+
 string getFilename_magMappingExpansionBitmap(	const PFSSsolutionInfo &info, hcFloat height,
 												bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
 	/*!< \brief returns filename for magnetic flux tube expansion factor image	(bitmap)											*/
