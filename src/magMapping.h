@@ -80,10 +80,19 @@ public:
     			hcFloat maxSinLat,
     			uint numTheta,
     			uint numPhi,
-    			hcFloat height);						/*!< \brief initializer									*/
+    			hcFloat height);					/*!< \brief initializer									*/
+
+    bool isComputed() const;
+    	/*!< \brief true if mapping has been computed														*/
 
     uint getNumTheta();
     uint getNumPhi();
+
+    Vec3D getCoords(uint j, uint k);
+    	/*!< \brief returns the coordinates for pixel (j,k)													*/
+
+    bool setCoords(uint j, uint k, const Vec3D &coord);
+    	/*!< \brief sets the coordinates for pixel (j,k)													*/
 
     hcFloat getHeight() const;
         	/*!< returns base height of this map															*/
@@ -121,20 +130,20 @@ public:
     string getExpansionFactorComment();
     	/*!< create comment to add to FITS files															*/
 
-    bool exportImage(string filename);
+    bool exportImagePolarity();
     	/*!< \brief creates polarity image of this mapping													*/
 
-    bool exportFootpointImage(string filename);
+    bool exportImageFootpoint(string filename);
     	/*!< \brief creates polarity image of photospheric footpoints for each magline in this mapping		*/
 
     bool exportASCII(string filename, hcFloat *heights, uint numHeights, hcFloat lowerR, hcFloat sourceSurfaceR);
 		/*!< \brief exports mag mapping with connection to several height levels to txt- and image-file 	*/
 
-    bool exportExpansionFactorImage(SphericalGrid *grid, const string &fn_fits, const string &fn_bitmap);
+    bool exportExpansionFactorImage();
         /*!< \brief export expansion factor of magnetic field lines in this map								*/
 
-    bool exportMagfieldImage(SphericalGrid *grid, const string &fn_fits);
-    	/*!< \brief export magnetic field at this map														*/
+    bool exportImageMagfield();
+    	/*!< \brief export magnetic field at this height													*/
 
     void dump(uint indent=0);
     	/*!< \brief dumps information on instance to stdout with optional indentation						*/
@@ -144,7 +153,7 @@ public:
 #endif
 private:
 
-    Vec2D *coords;      /*!< \brief theta / phi coordinates of pixel                                    	*/
+    Vec3D *coords;      /*!< \brief theta / phi coordinates of pixel                                    	*/
     hcFloat height;     /*!< \brief height position of map                                              	*/
 
     void initNULL();
@@ -152,6 +161,12 @@ private:
 
     uint index(uint indTheta, uint indPhi);
     	/*!< \brief returns the 1D index for access to the arrays coords and maglines						*/
+
+    bool checkComputed() const;
+		/*!< \brief check if mapping is computed and throws error if not									*/
+
+    bool checkExportedFile(const string &filename) const;
+    	/*!< \brief check if file already exists and returns false, if it does								*/
 };
 
 #endif // MAGMAPPING_H

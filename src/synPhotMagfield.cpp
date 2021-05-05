@@ -796,7 +796,6 @@ bool SynPhotMagfield::convertWSOtxtToWSOfits(const string &infile, const string 
 	uint ntheta 	= 30;
 	uint nphi 		= 72;
 	init(nphi, ntheta);
-	//hcFloat *image 	= new hcFloat[ntheta * nphi];
 	bool lastColumn	= false;
 
 	while (in.tellg() < length)
@@ -845,11 +844,8 @@ bool SynPhotMagfield::convertWSOtxtToWSOfits(const string &infile, const string 
 				}
 			}
 
-			while (!isdigit(a) && a != '-' && a != '\0')
-				a = linein[++l];
-
-			if (a == '\0')
-				continue;
+			while (!isdigit(a) && a != '-' && a != '\0')	a = linein[++l];
+			if (a == '\0')									continue;
 
 			k = l;
 			++i;
@@ -861,15 +857,14 @@ bool SynPhotMagfield::convertWSOtxtToWSOfits(const string &infile, const string 
 			temp[0] = '\0';
 			strncpy(temp, linein + k, l - k);
 			if(!lastColumn)
-				operator()(nphi - j - 1, ntheta - i - 1) = atof(temp) * 1E-2;
+				operator()(nphi - j - 1, ntheta - i - 1) = atof(temp) * 1E-2;	// WSO data in Micro Tesla -> convert to Gauss
 			else
 			{
 				operator()(nphi - j - 1, ntheta - i - 1) += atof(temp) * 1E-2;
 				operator()(nphi - j - 1, ntheta - i - 1) /= 2.0;
 			}
 		}
-		if (breaker)
-			break;
+		if (breaker) break;
 	}
 
 	save(outfile);
@@ -901,10 +896,8 @@ bool SynPhotMagfield::save(const string &filename)
 				exit(1);
 			}
 			mean += val;
-			if (val < minVal)
-				minVal = val;
-			if (val > maxVal)
-				maxVal = val;
+			if (val < minVal)	minVal = val;
+			if (val > maxVal)	maxVal = val;
 		}
 	mean /= (width*height);
 
@@ -932,9 +925,8 @@ bool SynPhotMagfield::save(const string &filename)
 	sprintf(comment, "Sine latitude of center of north-most pixel");
 	writeKeyFloat("MAXSINLA", comment, synInfo.maxSinLat);
 
-	comment[0] = '\0';
-	sprintf(comment, "Sine latitude of center of south-most pixel)");
-	writeKeyFloat("MINSINLA", comment, -synInfo.maxSinLat);
+	writeKeyFloat("MINSINLA", "Sine latitude of center of south-most pixel", -synInfo.maxSinLat);
+	writeKeyString("BUNIT", "unit of pixel values", "GAUSS");
 
 	return true;
 }

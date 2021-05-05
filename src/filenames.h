@@ -13,6 +13,8 @@ using namespace std;
 // directories
 // ---------------------------------------------------------------------------------------------------------------
 
+bool setConfig(const string &filename);
+
 string getFilename_crlist();
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -57,9 +59,17 @@ string getFilename_magMappingExpansion(	const PFSSsolutionInfo &info, hcFloat he
 										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
 	/*!< \brief returns filename for magnetic flux tube expansion factor image														*/
 
-string getFilename_magMappingMagfield(	const PFSSsolutionInfo &info, hcFloat height,
+string getFilename_magMappingMagfield_r(const PFSSsolutionInfo &info, hcFloat height,
 										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
-	/*!< \brief returns filename for magnetic field image																			*/
+	/*!< \brief returns filename for magnetic field image, radial component															*/
+
+string getFilename_magMappingMagfield_t(const PFSSsolutionInfo &info, hcFloat height,
+										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
+	/*!< \brief returns filename for magnetic field image, azimuthal component														*/
+
+string getFilename_magMappingMagfield_p(const PFSSsolutionInfo &info, hcFloat height,
+										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
+	/*!< \brief returns filename for magnetic field image, zonal component															*/
 
 string getFilename_magMappingExpansionBitmap(	const PFSSsolutionInfo &info, hcFloat height,
 												bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
@@ -90,17 +100,17 @@ string getFilename_EUVdata(uint crNum, euvID euv);
 string getFilename_EUVfootpointSummary(const PFSSsolutionInfo &info, hcFloat latThresh);
 	/*!< \brief returns filename for EUV analysis summary file																		*/
 
-string getFilename_EUVimg(	const string &outDir, const string &obs, euvID id,
-							const PFSSsolutionInfo &info, hcFloat latThresh);
+string getFilename_EUVimg(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh);
+	/*!< \brief returns filename for EUV image																						*/
 
-string getFilename_EUVfootpoints(	const string &outDir, const string &obs, euvID id,
-									const PFSSsolutionInfo &info, hcFloat latThresh);
+string getFilename_EUVfootpoints(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh);
+	/*!< \brief returns filename for EUV footpoint image																			*/
 
-string getFilename_EUVforwOpen(	const string &outDir, const string &obs, euvID id,
-								const PFSSsolutionInfo &info, hcFloat latThresh);
+string getFilename_EUVforwOpen(const string &obs, euvID id,	const PFSSsolutionInfo &info, hcFloat latThresh);
+	/*!< \brief returns filename for image depicting open photospheric maglines														*/
 
-string getFilename_EUVforwClose(	const string &outDir, const string &obs, euvID id,
-									const PFSSsolutionInfo &info, hcFloat latThresh);
+string getFilename_EUVforwClose(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh);
+	/*!< \brief returns filename for image depicting closed photospheric maglines													*/
 
 string getFilename_AIA(const string &instDir, euvID id, uint crNum);
 	/*< \brief returns AIA filename for specified Carrington rotation and wavelength (id)											*/

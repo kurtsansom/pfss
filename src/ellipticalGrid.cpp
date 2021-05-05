@@ -782,8 +782,6 @@ Vec3D Vec3D::convCoordEll2Cart(const EllipticalGrid &grid) const
 	Vec3D retval 	= *this;
 	hcFloat a		= grid.getEllParamsFromPos(retval, true);
 	retval			= retval.convCoordSpher2Cart();
-	//printf("prolate: %u, a: %E\n", grid.prolate, a);
-	//printf("%E %E %E\n", retval[0], retval[1], retval[2]);
 	if(grid.prolate)
 	{
 		retval(2)	*= a;
@@ -793,8 +791,17 @@ Vec3D Vec3D::convCoordEll2Cart(const EllipticalGrid &grid) const
 		retval(0)	*= a;
 		retval(1)	*= a;
 	}
-	//printf("%E %E %E\n", retval[0], retval[1], retval[2]);
 	return retval;
+}
+
+Vec3D Vec3D::convCoordSpher2Ell(EllipticalGrid &grid) const
+{
+	return this->convCoordSpher2Cart().convCoordCart2Ell(grid);
+}
+
+Vec3D Vec3D::convCoordEll2Spher(EllipticalGrid &grid) const
+{
+	return this->convCoordEll2Cart(grid).convCoordCart2Spher();
 }
 
 Vec3D Vec3D::convVecCart2Ell(const Vec3D &cartPos, const EllipticalGrid &grid) const
@@ -812,11 +819,6 @@ Vec3D Vec3D::convVecCart2Ell(const Vec3D &cartPos, const EllipticalGrid &grid) c
 
 	Vec3D retval;
 	M.solveSLE(retval);
-
-	/*
-	Vec3D inv = retval.convVecEll2Cart(cartPos, grid);
-	if(fabs((*this)[0]-inv[0])>1E-4 || fabs((*this)[1]-inv[1])>1E-4 || fabs((*this)[2]-inv[2])>1E-4)
-		printf("VecC2E:\n%E %E %E\n%E %E %E\n", (*this)[0], (*this)[1], (*this)[2], inv[0], inv[1], inv[2]);//*/
 
 	return retval;
 }
@@ -843,15 +845,6 @@ Vec3D Vec3D::convVecEll2Spher(const Vec3D &posEll, const EllipticalGrid &grid) c
 	return this->convVecEll2Cart(posC, grid).convVecCart2Spher(posC);
 }
 
-Vec3D Vec3D::convCoordSpher2Ell(EllipticalGrid &grid) const
-{
-	return this->convCoordSpher2Cart().convCoordCart2Ell(grid);
-}
-
-Vec3D Vec3D::convCoordEll2Spher(EllipticalGrid &grid) const
-{
-	return this->convCoordEll2Cart(grid).convCoordCart2Spher();
-}
 
 // TODO: what happens if you call this twice?
 void EllipticalGrid::convertMagMapping(MagMapping &map)
@@ -860,6 +853,7 @@ void EllipticalGrid::convertMagMapping(MagMapping &map)
 		for(uint k=0; k<map.numPhi; ++k)
 		{
 			Magline &magl 	= map(j,k);
+			map.setCoords(j, k, map.getCoords(j, k).convCoordEll2Spher(*this));
 
 			for(uint i=0; i<magl.numSamples; ++i)
 			{

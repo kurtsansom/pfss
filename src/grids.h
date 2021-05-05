@@ -479,7 +479,7 @@ inline bool SphericalGrid::getInterpolatedB(Vec3D &B_out, Vec3D &position, unsig
 
     if(!position.isValid() || fabs(position[1]) > 20 || fabs(position[2]) > 20)
     {
-        printf("ERROR! SphericalGrid::getInterpolatedB: You supplied an invalid position!\npos: %E / %E / %E\n", position[0], position[1], position[2]);
+        printErrMess(__FILE__, __LINE__, "you supplied an invalid position (" + to_string(position[0]) + "/" + to_string(position[1]) + "/" + to_string(position[2]) + "\n");
         return false;
     }
 

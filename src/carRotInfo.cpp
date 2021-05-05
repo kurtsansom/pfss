@@ -4,7 +4,6 @@
 #include "engine/hcTools.h"
 
 #include <boost/regex.hpp>
-
 #include <iomanip>
 #include <limits>
 #include <cstring>

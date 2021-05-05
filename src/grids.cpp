@@ -457,7 +457,7 @@ Vec3D SphericalGrid::getPos(uint index, bool computationalCoords) const
 		return pos[index];
 	else
 	{
-		printf("ERROR! SphericalGrid::getPos: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 		return Vec3D(0.0, 0.0, 0.0);
 	}
 }
@@ -474,11 +474,10 @@ Vec3D* SphericalGrid::getBArray() const
 
 Vec3D SphericalGrid::getB(uint index, bool ellipticCoords) const
 {
-	if (index < numGridPoints)
-		return B[index];
+	if (index < numGridPoints) return B[index];
 	else
 	{
-		printf("ERROR! SphericalGrid::getB: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 		return Vec3D(0.0, 0.0, 0.0);
 	}
 }
@@ -488,7 +487,7 @@ void SphericalGrid::setB(uint index, Vec3D value, bool ellipticCoords)
 	if (index < numGridPoints)
 		B[index] = value;
 	else
-		printf("ERROR! SphericalGrid::setB: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 }
 
 hcFloat* SphericalGrid::getPsiArray() const
@@ -502,7 +501,7 @@ hcFloat SphericalGrid::getPsi(uint index) const
 		return psi[index];
 	else
 	{
-		printf("ERROR! SphericalGrid::getPsi: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 		return 0.0;
 	}
 }
@@ -512,7 +511,7 @@ void SphericalGrid::setPsi(uint index, hcFloat value)
 	if (index < numGridPoints)
 		psi[index] = value;
 	else
-		printf("ERROR! SphericalGrid::setPsi: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 }
 
 hcFloat* SphericalGrid::getRelErrorArray() const
@@ -526,7 +525,7 @@ hcFloat SphericalGrid::getRelError(uint index) const
 		return relError[index];
 	else
 	{
-		printf("ERROR! SphericalGrid::getRelError: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 		return 0.0;
 	}
 }
@@ -536,7 +535,7 @@ void SphericalGrid::setRelError(uint index, hcFloat value)
 	if (index < numGridPoints)
 		relError[index] = value;
 	else
-		printf("ERROR! SphericalGrid::setRelError: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 }
 
 hcFloat* SphericalGrid::getTempArray() const
@@ -550,7 +549,7 @@ hcFloat SphericalGrid::getTemp(uint index) const
 	    return temp[index];
 	else
 	{
-		printf("ERROR! SphericalGrid::getTemp: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 		return 0.0;
 	}
 }
@@ -560,7 +559,7 @@ void SphericalGrid::setTemp(uint index, hcFloat value)
 	if (index < numGridPoints)
 		temp[index] = value;
 	else
-		printf("ERROR! SphericalGrid::setTemp: index (%u) out of bounds (%u)\n", index, numGridPoints);
+		printErrMess(__FILE__, __LINE__, "index " + to_string(index) + " out of bounds + " + to_string(numGridPoints) + "\n");
 }
 
 uint SphericalGrid::getIndexPhiPlus(uint ind)

@@ -46,45 +46,9 @@ void clearStatics()
     crInfoList::clearStaticMembers();
 }
 
-
-bool setConfig(const string &filename)
+void printHelp()
 {
-	bool retval = true;
-
-	if(!doesFileExist(filename))
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": --config option given, but file '" << filename << "'does not exist.\n";
-		return false;
-	}
-
-	std::ifstream config(filename);
-	string line = "";
-    while(getline(config, line))
-    {
-    	string option 		= "";
-    	string argument 	= "";
-    	stringstream stream(line);
-    	stream >> option >> argument;
-    	if(option == "dirData")			dirData			= argument;
-    	if(option == "dirConfig")		dirConfig		= argument;
-    }
-    config.close();
-
-    if(dirData == "")
-    {
-    	cerr << __FILE__ << ":" << __LINE__ << ": Configuration file '" <<  filename << "' does not contain dirData field.\n";
-    	retval = false;
-    }
-    else if(!directoryExists(dirData)) retval = createDir(dirData);
-
-    if(dirConfig == "")
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": Configuration file '" <<  filename << "' does not contain dirConfig field.\n";
-		retval = false;
-	}
-	else retval = directoryExists(dirConfig);
-
-	return retval;
+	printStdOutMess(__FILE__, __LINE__, "this text shall be displayed if --help is set or no command line arguments are given");
 }
 
 bool parse(int argc, char **argv)
@@ -92,6 +56,8 @@ bool parse(int argc, char **argv)
     int c;
     int digit_optind 	= 0;
 
+    bool abort			= false;
+    bool help			= false;
     bool batchMap		= false;
     bool loadAndMap 	= false;
     uint resMapTheta	= 100;
@@ -118,6 +84,7 @@ bool parse(int argc, char **argv)
 			{"ell",			required_argument, 	0,  0},
 			{"batchcompute",required_argument, 	0,  0},
 			{"batchmap",	no_argument, 		0,  0},
+			{"help",		no_argument, 		0,  0},
 			{"ell",			required_argument, 	0,  0},
 			{"rss",    		required_argument, 	0,  0},
 			{"resCompR",	required_argument, 	0,  0},
@@ -139,15 +106,16 @@ bool parse(int argc, char **argv)
 				else if(command == "compute"){		compute 		= true; filename = optarg;}
 				else if(command == "batchcompute"){	batchCompute 	= true; filename = optarg;}
 				else if(command == "batchmap"){		batchMap	 	= true;}
-				else if(command == "resCompR"){		resCompR 		= atoi(optarg);}
+				else if(command == "help"){			help		 	= true;}
+				else if(command == "rescompr"){		resCompR 		= atoi(optarg);}
 				else if(command == "resMapTheta"){	resMapTheta 	= atoi(optarg);}
 				else if(command == "resMapPhi"){	resMapPhi 		= atoi(optarg);}
 				else if(command == "ell")
 				{
 					hcFloat val = strtof(optarg, NULL);
-					if(val < 1.0)
+					if(val < 0.0)
 					{
-						printErrMess(__FILE__, __LINE__, "ellipticity must be >= 1.0, you supplied --ell " + string(optarg));
+						printErrMess(__FILE__, __LINE__, "ellipticity must be >= 0.0, you supplied --ell " + string(optarg));
 						return false;
 					}
 					else ellipticity = val;
@@ -162,12 +130,10 @@ bool parse(int argc, char **argv)
 					}
 					else rss = val * r_sol;
 				}
-
 				else
 				{
-					cout << "option " << long_options[option_index].name;
-					if (optarg)	cout << " with arg " << optarg;
-					cout << "\n";
+					printStdOutMess(__FILE__, __LINE__, "unknown option " + string(long_options[option_index].name) + " with arg " + (optarg ? string(optarg) : "none"));
+					return false;
 				}
 				break;
 
@@ -206,9 +172,15 @@ bool parse(int argc, char **argv)
 
 	if (optind < argc)
 	{
-		cout << "non-option ARGV-elements: ";
-		while (optind < argc) cout << argv[optind++] << " ";
-		cout << "\n";
+		printErrMess(__FILE__, __LINE__, "non-option ARGV-elements: ");
+		while (optind < argc) printErrMess(__FILE__, __LINE__,  string(argv[optind++]) + " ");
+		return false;
+	}
+
+	if(abort)
+	{
+		printErrMess(__FILE__, __LINE__, "commmand line option parsing error");
+		return false;
 	}
 
 	if(dirData == "")	// no config supplied via cmd-line, search for default config pfss/config/config
@@ -234,8 +206,11 @@ bool parse(int argc, char **argv)
 		#endif
 	}
 
+	//cout << "argc: " << argc << "\n";
+	// perform operations requested by command line
+	if(help || argc==1)	printHelp();
 	PFSSsolution sol;
-	if(batchCompute)	sol.batchKielGrid(filename, rss, resCompR, 100, 200, false, ellipticity);
+	if(batchCompute)	sol.batchKielGrid(filename, rss, resCompR, ellipticity);
 	if(batchMap)		sol.batchMap(resMapTheta, resMapPhi, inter);
 	if(loadAndMap)		sol.loadAndMapKielGrid(filename, resMapTheta, resMapPhi, false);
 	if(compute)			sol.computeKielGrid(filename, "", rss, resCompR, ellipticity);

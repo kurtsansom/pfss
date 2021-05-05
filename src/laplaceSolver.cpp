@@ -221,28 +221,23 @@ void SphericalGrid::iterateElliptic_gridPoint(uint i, uint j, uint k)
 		gr.setTemp(ind, retval);
 		gr.setRelError(ind, fabsf((gr.getTemp(ind) - gr.getPsi(ind)) / gr.getTemp(ind)));
 
-		//if(i<3)	cout << to_string(i) << "/" << to_string(j) << "/" << to_string(k) << " " << gr.getTemp(ind) << " " << gr.getRelError(ind) << "\n";
-
-
 		if (std::isnan(gr.getTemp(ind)) || std::isinf(gr.getTemp(ind)))
 		{
-			//printf("\n%u(%u)/%u(%u)/%u(%u)",	i, numR, j, numT, k, numP);
-			//if(std::isnan(gr.getTemp(ind)) || std::isinf(gr.getTemp(ind)))	nan = true;
 			printErrMess(__FILE__, __LINE__, "solver got nan/inf value");
 			exit(1);
 		}
 	}
 }
 
-/*! entry function for multicore creation of magnetic field lines
+/*! entry function for multicore PFSS iteration function
  */
 void *LaplaceSolver::iterateElliptic_threadEntry(void *parameter)
 {
 	threadParamLaplace *param 	= (threadParamLaplace*)parameter;
 	SphericalGrid *grid			= param->grid;
 	uint id 					= param->idx;
-
 	bool debug 					= false;
+
 	if(debug)
 	{
 		cout << "------------------------------------------------------\n";
@@ -331,7 +326,6 @@ void LaplaceSolver::iterateElliptic_MT()
 							pthread_mutex_unlock(&runningMutex);
 							tParams[j].set(i*gppt, gppt);
 
-							//if(j==0)	cout << "Dispatch thread at point " << i*gppt << "subdiv: " << numSubdiv << "\n";fflush(stdout);
 							int rc = pthread_create(&threads[j], NULL, LaplaceSolver::iterateElliptic_threadEntry, (void*)(&tParams[j]));
 
 							if(rc)
@@ -379,7 +373,6 @@ void LaplaceSolver::iterateElliptic_ST()
 	uint numR      		 = gr.numR;
 	uint numT	   		= gr.numTheta;
 	uint numP   		= gr.numPhi;
-	hcFloat *psi		= gr.getPsiArray();
 
     for(uint i=1; i<numR; ++i)
     	for(uint j=0; j<numT; ++j)
@@ -511,7 +504,6 @@ void LaplaceSolver::computeLowerBoundary_CPU(hcImageFITS &boundary)
         for(uint k=0; k<numP; ++k)
         {
             uint ind    	= k * numR * numT + j * numR;
-            //uint texInd 	= (numT - 1 - j) * numP + k;		// TODO: false index?
 
             Vec3D pos		= gr.pos[ind];
 			Vec3D pos_p		= gr.pos[ind+1];
@@ -519,7 +511,6 @@ void LaplaceSolver::computeLowerBoundary_CPU(hcImageFITS &boundary)
 			hcFloat psi_p	= gr.psi[ind+1];
 			hcFloat psi_pp	= gr.psi[ind+2];
 
-			//hcFloat B_l     = image[texInd];
 			hcFloat B_l     = boundary(k, numT-1-j);
 			hcFloat B_r     = B_l / sin(pos[1]); // radial approach
 

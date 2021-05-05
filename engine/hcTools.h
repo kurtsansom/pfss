@@ -180,6 +180,9 @@ void sort_bubble(hcFloat *arr, uint num);
 /*! \brief calls std::sort on @param arr with @param num elements																		*/
 void sort_std(hcFloat *arr, uint num);
 
+/*! \brief gives an estimate of the remaining computation time																			*/
+void computationTimeEstimate(uint numberOfComputations, uint numberComputationsDone, const hcDate &startTime);
+
 /*! \brief maps phi to interval [0,2PI) with cyclic boundary																			*/
 hcFloat cyclicPhi(hcFloat phi);
 

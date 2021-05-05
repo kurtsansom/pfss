@@ -18,8 +18,7 @@
 class PFSSsolution{
 public:
 
-	methodID method;				/*!< \brief SHC, numeric spheric or numeric elliptic						*/
-
+	methodID method;				/*!< \brief TODO: info? SHC, numeric spheric or numeric elliptic						*/
     LaplaceSolver solver;           /*!< \brief the actual solver                       						*/
     PFSSsolutionInfo info;    		/*!< \brief information about solution										*/
     SynPhotMagfield photBoundary;   /*!< \brief boundary condition for solver           						*/
@@ -66,24 +65,16 @@ public:
     		uint compResR, hcFloat surfShapeA, uint scaleMethod=7);
         /*!< \brief computes finite difference laplace equation via GPU or CPU          						*/
 
-    bool mapHeightLevel(hcFloat height, hcFloat *heights, uint numHeights,
-    		hcFloat maxSinLat, uint numTheta, uint numPhi,
-    		bool sinLatFormat, bool computationalCoords, bool exportASCII);
+    bool mapHeightLevel(hcFloat height, hcFloat maxSinLat, uint numTheta, uint numPhi,
+    		bool sinLatFormat=true, bool computationalCoords=true);
     	/*!< \brief routine for computing magnetic height maps in memory										*/
 
     string getMagneticMappingFilename(const MagMapping &magmap);
     	/*!< \brief getting filename for export/import of magnetic mappings										*/
 
-    //bool setOutDir(const string &outDir);
-		/*!< sets output directory for solution storage															*/
-
     bool multiMapSolution(	uint numTheta, uint numPhi, bool computeIntermediateHeightLevels,
     						bool sinLatFormat, bool computaionalCoords);
     	/*!< \brief computes magnetic field line maps to several height levels									*/
-
-    void loadAndMapCSSS(const char *boundaryFN, const char *coeffFN,
-    		uint compRadialRes, uint imgThetaRes, uint imgPhiRes, bool mapIntermediateHeights);
-    	/*!< \brief loads Bala CSSS file and computes mapping (TODO: not working so far)						*/
 
     bool computeAndMapKielSHC(const string &filename, uint order, hcFloat r_ss,
     		uint compResR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights);
@@ -109,8 +100,7 @@ public:
 			uint compResR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights);
 		/*!< \brief computes and maps Kiel SHC approach for all files in inDir									*/
 
-	bool batchKielGrid(const string &inDir, hcFloat r_ss, uint resCompR,
-			uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights, hcFloat surfShapeA);
+	bool batchKielGrid(const string &inDir, hcFloat r_ss, uint resCompR, hcFloat ellipticity=1.0);
 		/*!< \brief computes and maps Kiel grid approach for all files in inDir									*/
 
 	bool batchMap(uint resMapTheta, uint resMapPhi, bool mapIntermediateHeights);
@@ -133,8 +123,10 @@ public:
 		/*!< \brief analyses impact on image scaling algorithm on results										*/
 
 	void paramStudyRadialRes(const char *filename);
+		/*!< \brief parameter study regarding radial resolution of computational grid							*/
 
 	void compareAnaInter(const char *inDir);
+		/*!< \brief comparison study regarding analytical and interpolated magnetic field line tracking			*/
 
 	void compareSHCorders(const string &inDir, hcFloat r_ss,
 			uint compRadialRes, uint imgThetaRes, uint imgPhiRes, bool mapIntermediateHeights=false);
@@ -161,7 +153,7 @@ public:
 // GUI functions
 // ---------------------------------------------------------------------------------------------------------------
 #ifdef GUI
-	bool insertFootpointData(const char *fn, FootpointData &data);
+	bool insertFootpointData(const string &fn, FootpointData &data);
 
     bool EUVanalysis(	euvID id, hcImageFITS &euv, bool EIT, hcFloat latThresh,
 						MagMapping &mapBack, MagMapping &mapForw, FootpointData &retval);

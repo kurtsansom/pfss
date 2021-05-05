@@ -1,5 +1,6 @@
 #include "src/pfssSolution.h"
 #include "src/filenames.h"
+#include "engine/hcTools.h"
 
 #include "boost/filesystem.hpp"
 #include "boost/regex.hpp"
@@ -71,18 +72,11 @@ bool PFSSsolution::batchKielSHC(const char *inDir, hcFloat r_ss,
  *
  *	@param	inDir					direcory to be worked upon
  *	@param	r_ss					heliocenric position of source surface
- *	@param	compResR				radial resolution of computational grid
- * 	@param	compResTheta			meridional resolutions of computational grid
- * 	@param	compResPhi				zonal resolution of computational grid
- * 	@param	rDist					distribution of radial grid shells (use 0 for equidistant spacing in r-direction)
- * 	@param	geomIncFactor			geometric increment factor for non-equidistant r-spacing
- * 	@param	mapResTheta				meridional resolution of magnetic mapping
- * 	@param	mapResPhi				zonal resolution of magnetic mapping
- * 	@param	mapIntermediateHeights	true, if for each r-shell of the comp grid a magnetic mapping is to be computed
+ *	@param	resCompR				radial resolution of computational grid
+ *	@param	ellipticity				ellipticity of source surface (default: 1.0 - spherical)
  *
  */
-bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,
-		uint resCompR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights, hcFloat ellipticity)
+bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,	uint resCompR, hcFloat ellipticity)
 {
     if (!exists(inDir) || !is_directory(inDir))
     {
@@ -93,9 +87,9 @@ bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,
     if(!isDirSet()) return false;
 
     printStdOutMess(__FILE__, __LINE__, "started batch computation on directory '" + inDir + "'");
-    printStdOutMess(__FILE__, __LINE__, "r_ss:        " + toStr(r_ss /r_sol) + " r_sol");
-    printStdOutMess(__FILE__, __LINE__, "ellipticity: " + toStr(ellipticity));
-    printStdOutMess(__FILE__, __LINE__, "resCompR:    " + toStr(resCompR));
+    printStdOutMess(__FILE__, __LINE__, "\tr_ss:        " + toStr(r_ss /r_sol) + " r_sol");
+    printStdOutMess(__FILE__, __LINE__, "\tellipticity: " + toStr(ellipticity));
+    printStdOutMess(__FILE__, __LINE__, "\tresCompR:    " + toStr(resCompR));
 
 	path directory(inDir);
 	directory_iterator end_iter;
@@ -105,7 +99,6 @@ bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,
         {
         	string filename = dir_iter->path().string();
         	printStdOutMess(__FILE__, __LINE__, "working on file '" + filename + "'");
-            //computeAndMapKielGrid(filename, "", r_ss, compResR, mapResTheta, mapResPhi, mapIntermediateHeights, ellipticity);
             computeKielGrid(filename, "", r_ss, resCompR, ellipticity);
         }
         else
@@ -144,11 +137,7 @@ bool PFSSsolution::batchFootpointAnalysis(	const string &inDir, hcFloat r_ss, ui
         return false;
     }
 
-    if (outDir[0] == '\0')
-	{
-    	printf("ERROR!\tPFSSsolution::batchFootpointAnalysis\n\t output directory has not been set!\n");
-    	return false;
-	}
+    if(!isDirSet())	return false;
 
 	printf("--------------------------------------------------------------------\n");
 	printf("-- PFSS::batchFootpointAnalysis_KielGrid on dir: '%s'\n", inDir.data());
@@ -237,18 +226,14 @@ bool PFSSsolution::batchFootpointAnalysis(	const string &inDir, hcFloat r_ss, ui
 
 bool PFSSsolution::batchFootpointAnalysisAllComputed(hcFloat latThresh)
 {
-	if(!exists(outDir))
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": outDir not set or does not exist!\n";
-		return false;
-	}
+	if(!isDirSet()) return false;
 
-	path directory(outDir);
+	path directory(dirData);
 	directory_iterator end_iter, endIter2;
 
 	uint solutionCount = 0;
 
-	for (directory_iterator dir_iter(outDir) ; dir_iter != end_iter ; ++dir_iter)
+	for (directory_iterator dir_iter(dirData) ; dir_iter != end_iter ; ++dir_iter)
 		if(is_directory(dir_iter->status()))
 			for(directory_iterator innerIter(dir_iter->path().c_str()); innerIter != endIter2; ++innerIter)
 			{
@@ -262,7 +247,7 @@ bool PFSSsolution::batchFootpointAnalysisAllComputed(hcFloat latThresh)
 
 	uint solutionsCompleted = 0;
 
-	for (directory_iterator dir_iter(outDir) ; dir_iter != end_iter ; ++dir_iter)
+	for (directory_iterator dir_iter(dirData) ; dir_iter != end_iter ; ++dir_iter)
 		if(is_directory(dir_iter->status()))
 			for(directory_iterator innerIter(dir_iter->path().c_str()); innerIter != endIter2; ++innerIter)
 			{
@@ -274,7 +259,7 @@ bool PFSSsolution::batchFootpointAnalysisAllComputed(hcFloat latThresh)
 					PFSSsolutionInfo solInf;
 					getParamFromFN_pfssSolutionInfo(filename, solInf);
 					stringstream fnsummary;
-					fnsummary << outDir << "/" << solInf.CRnum << "/" << getFilename_EUVfootpointSummary(solInf, INFINITY);
+					fnsummary << dirData << "/" << solInf.CRnum << "/" << getFilename_EUVfootpointSummary(solInf, INFINITY);
 
 					uint cr = solInf.CRnum;
 					if(cr < 1916 || cr > 2186 || (cr > 2055 && cr < 2097))
@@ -613,8 +598,6 @@ void PFSSsolution::paramStudyThresh(const char *filename, uint compRadialRes, ui
 	printf("--------------------------------------------------------------------\n\n");
 
 	uint numThresholds = 30;
-	hcFloat threshes[numThresholds];
-	uint times[numThresholds];
 
 	for(uint i=1; i<=numThresholds; ++i)
 	{
@@ -663,9 +646,6 @@ void PFSSsolution::paramStudyRss(const char *inDir, uint compRadialRes, uint com
     {
         if (is_regular_file(dir_iter->status()))
         {
-        	//char filename[1000];
-        	//sprintf(filename, dir_iter->path().c_str());
-            //printf("Working on file\n'%s'\n\n", filename);
         	string filename = dir_iter->path().string();
 			cout << "Working on file '" << filename << "'\n";fflush(stdout);
 

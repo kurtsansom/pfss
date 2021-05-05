@@ -20,10 +20,49 @@ regex pat_pfssSolutionInfo("([0-9]{4})_(.*)_(.*)_((?:PFSS)|(?:CSSS))([0-9]{1}\\.
 
 regex pat_magMap("((?:LinLat)|(?:SinLat))Map([0-9]{1}\\.[0-9]{2})((?:comp)|(?:world))_res([0-9]*)x([0-9]*)", regex::icase);
 
-
 // ---------------------------------------------------------------------------------------------------------------
 // configuration
 // ---------------------------------------------------------------------------------------------------------------
+
+bool setConfig(const string &filename)
+{
+	bool retval = true;
+
+	if(!doesFileExist(filename))
+	{
+		cerr << __FILE__ << ":" << __LINE__ << ": --config option given, but file '" << filename << "'does not exist.\n";
+		return false;
+	}
+
+	std::ifstream config(filename);
+	string line = "";
+    while(getline(config, line))
+    {
+    	string option 		= "";
+    	string argument 	= "";
+    	stringstream stream(line);
+    	stream >> option >> argument;
+    	if(option == "dirData")			dirData			= argument;
+    	if(option == "dirConfig")		dirConfig		= argument;
+    }
+    config.close();
+
+    if(dirData == "")
+    {
+    	printErrMess(__FILE__, __LINE__, "configuration file '" + filename + "' does not contain dirData field");
+    	retval &= false;
+    }
+    else if(!directoryExists(dirData)) retval &= createDir(dirData);
+
+    if(dirConfig == "")
+	{
+		printErrMess(__FILE__, __LINE__, "configuration file '" + filename + "' does not contain dirConfig field");
+		retval &= false;
+	}
+	else retval &= directoryExists(dirConfig);
+
+	return retval;
+}
 
 string getFilename_crlist()
 {
@@ -120,21 +159,16 @@ string getFilename_magMapping(	const PFSSsolutionInfo &info, hcFloat height,
 	PFSSsolutionInfo inf_m;
 	if(!getParamFromFN_magMapping(retval.str(), inf_m, height, sinLatFormat, compCoords, resTheta, resPhi))
 	{
-		cerr << __FILE__ << ":" << __LINE__ << ": Regex does not match. Filename:\n";
-		cout << retval.str() << "\n";
+		printErrMess(__FILE__, __LINE__, "regex does not match, filename: '" + retval.str() + "'");
 		exit(1);
 	}
-
 	return retval.str();
 }
 
 string getFilename_magMappingExt(	const PFSSsolutionInfo &info, hcFloat height,
 									bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi, const string &extension)
 {
-	stringstream retval;
-	retval << getFilename_magMapping(info, height, sinLatFormat, compCoords, resTheta, resPhi);
-	retval << extension;
-	return retval.str();
+	return dirData + to_string(info.CRnum) + "/" + getFilename_magMapping(info, height, sinLatFormat, compCoords, resTheta, resPhi) + extension;
 }
 
 string getFilename_magMappingBin(	const PFSSsolutionInfo &info, hcFloat height,
@@ -167,16 +201,28 @@ string getFilename_magMappingExpansion(	const PFSSsolutionInfo &info, hcFloat he
 	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_expansion.fits");
 }
 
-string getFilename_magMappingMagfield(	const PFSSsolutionInfo &info, hcFloat height,
+string getFilename_magMappingExpansionBitmap(	const PFSSsolutionInfo &info, hcFloat height,
+												bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
+{
+	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_expansion.bmp");
+}
+
+string getFilename_magMappingMagfield_r(	const PFSSsolutionInfo &info, hcFloat height,
 										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
 {
 	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_br.fits");
 }
 
-string getFilename_magMappingExpansionBitmap(	const PFSSsolutionInfo &info, hcFloat height,
-												bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
+string getFilename_magMappingMagfield_t(	const PFSSsolutionInfo &info, hcFloat height,
+										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
 {
-	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_expansion.bmp");
+	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_bt.fits");
+}
+
+string getFilename_magMappingMagfield_p(	const PFSSsolutionInfo &info, hcFloat height,
+										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
+{
+	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_bp.fits");
 }
 
 string getFilenameAnalysisXB(	string dir, spacecraftID scid, uint crStart, uint crEnd,
@@ -284,43 +330,43 @@ string getFilename_EUVfootpointSummary(const PFSSsolutionInfo &info, hcFloat lat
 	return retval.str();
 }
 
-string getFilename_EUVprefix(const string &outDir, const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
+string getFilename_EUVprefix(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
 {
 	stringstream retval;
 	retval.precision(6);
-	retval << outDir << "/" << info.CRnum << "/" << obs << getStringFromEUVid(id) << "_lat" << fixed << latThresh << "_";
+	retval << dirData << "/" << info.CRnum << "/" << obs << getStringFromEUVid(id) << "_lat" << fixed << latThresh << "_";
 	return retval.str();
 }
 
-string getFilename_EUVimg(const string &outDir, const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
+string getFilename_EUVimg(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
 {
 	stringstream retval;
 	retval.precision(6);
-	retval << getFilename_EUVprefix(outDir, obs, id, info, latThresh) << "euvmap.fits";
+	retval << getFilename_EUVprefix(obs, id, info, latThresh) << "euvmap.fits";
 	return retval.str();
 }
 
-string getFilename_EUVfootpoints(const string &outDir, const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
+string getFilename_EUVfootpoints(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
 {
 	stringstream retval;
 	retval.precision(6);
-	retval << getFilename_EUVprefix(outDir, obs, id, info, latThresh) << getFilename_pfssSolutionInfo(info) << "_backmap.fits";
+	retval << getFilename_EUVprefix(obs, id, info, latThresh) << getFilename_pfssSolutionInfo(info) << "_backmap.fits";
 	return retval.str();
 }
 
-string getFilename_EUVforwOpen(const string &outDir, const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
+string getFilename_EUVforwOpen(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
 {
 	stringstream retval;
 	retval.precision(6);
-	retval << getFilename_EUVprefix(outDir, obs, id, info, latThresh) << getFilename_pfssSolutionInfo(info) << "_forwmapOpen.fits";
+	retval << getFilename_EUVprefix(obs, id, info, latThresh) << getFilename_pfssSolutionInfo(info) << "_forwmapOpen.fits";
 	return retval.str();
 }
 
-string getFilename_EUVforwClose(const string &outDir, const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
+string getFilename_EUVforwClose(const string &obs, euvID id, const PFSSsolutionInfo &info, hcFloat latThresh)
 {
 	stringstream retval;
 	retval.precision(6);
-	retval << getFilename_EUVprefix(outDir, obs, id, info, latThresh) << getFilename_pfssSolutionInfo(info) << "_forwmapClose.fits";
+	retval << getFilename_EUVprefix(obs, id, info, latThresh) << getFilename_pfssSolutionInfo(info) << "_forwmapClose.fits";
 	return retval.str();
 }
 
@@ -430,8 +476,7 @@ bool getParamFromFN_magMapping(	const string &filename, PFSSsolutionInfo &info,
 								hcFloat &height, bool &sinLatFormat, bool &compCoords,
 								uint &resTheta, uint &resPhi)
 {
-	if(!getParamFromFN_pfssSolutionInfo(filename, info))
-		return false;
+	if(!getParamFromFN_pfssSolutionInfo(filename, info)) return false;
 
 	cmatch what;
 	if(regex_search(filename.data(), what, pat_magMap))
@@ -442,7 +487,6 @@ bool getParamFromFN_magMapping(	const string &filename, PFSSsolutionInfo &info,
 		compCoords		= what[3].str() == "comp"	? true : false;
 		resTheta		= strtol(what[4].str().data(), &endC, 10);
 		resPhi			= strtol(what[5].str().data(), &endC, 10);
-
 		return true;
 	}
 	return false;

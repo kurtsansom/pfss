@@ -841,8 +841,8 @@ bool Magline::importBinary(std::ifstream &stream)
 void Magline::dump() const
 {
 	cout << "Magline::dump():\n";
-	for (uint i = 0; i < numSamples; ++i)
-		cout << "i: " << i << ", height: " << posdata[i][0] 	<< "\n";
+	//for (uint i = 0; i < numSamples; ++i)
+	//	cout << "i: " << i << ", pos: " << posdata[i][0] << "/" << posdata[i][1] << "/" << posdata[i][2] << "\n";
 	cout << "Number of samples: " << numSamples 				<< "\n";
 	cout << "Magline valid:     " << valid 						<< "\n";
 	cout << "Magline closed:    " << closed 					<< "\n";
@@ -852,6 +852,11 @@ void Magline::dump() const
 	cout << "Magnetic field at lower boundary:\n";
 	if (numSamples > 0) magdata[0].dump();
 	else				cout << "No data\n";
+
+	for(uint i=0; i<numSamples; ++i)
+	{
+		cout << i << " " << posdata[i][0] << "/" <<  posdata[i][1] << "/" << posdata[i][2] << " " << magdata[i][0] << "/" <<  magdata[i][1] << "/" << magdata[i][2] << "\n";
+	}
 }
 
 void Magline::initStaticMembers()

@@ -238,7 +238,7 @@ void MagMapping::init(const PFSSsolutionInfo &info, bool sinLatFormat, bool comp
     this->compCoords	= compCoords;
 
     maglines    		= new Magline*[numTheta * numPhi];
-    coords      		= new Vec2D[   numTheta * numPhi];
+    coords      		= new Vec3D[   numTheta * numPhi];
 
     hcFloat dSinLat		= 2*maxSinLat/(numTheta-1);
 
@@ -247,7 +247,7 @@ void MagMapping::init(const PFSSsolutionInfo &info, bool sinLatFormat, bool comp
         {
         	hcFloat theta		= sinLatFormat ? PI/2 - asin(maxSinLat - j * dSinLat) : PI/2-asin(maxSinLat) + j*dLat;
 			hcFloat phi         = k * 2 * PI / numPhi;
-			coords[index(j, k)] = Vec2D(theta, phi);	// TODO this only accounts for computational coordinates, for elliptical world coordinates see the createMagmapping function
+			coords[index(j, k)] = Vec3D(height, theta, phi);
             maglines[index(j,k)]= new Magline();
         }
 }
@@ -255,6 +255,39 @@ void MagMapping::init(const PFSSsolutionInfo &info, bool sinLatFormat, bool comp
 uint MagMapping::index(uint indTheta, uint indPhi)
 {
 	return indTheta * numPhi + indPhi;
+}
+
+bool MagMapping::isComputed() const
+{
+	return maglines != NULL;
+}
+
+bool MagMapping::checkComputed() const
+{
+	if(!isComputed())
+	{
+		printErrMess(__FILE__, __LINE__, "magmapping not computed");
+		return false;
+	}
+	return true;
+}
+
+// TODO: insert in hcTools?
+bool MagMapping::checkExportedFile(const string &filename) const
+{
+	if(doesFileExist(filename))
+	{
+		printStdOutMess(__FILE__, __LINE__, "file '" + filename + "' does already exist, do not export");
+		return false;
+	}
+
+	if(!createFolderStructureTo(filename.c_str()))
+	{
+		printErrMess(__FILE__, __LINE__, "file '" + filename + "' cannot be created");
+		return false;
+	}
+
+	return true;
 }
 
 uint MagMapping::getNumTheta()
@@ -267,6 +300,23 @@ uint MagMapping::getNumPhi()
     return numPhi;
 }
 
+Vec3D MagMapping::getCoords(uint j, uint k)
+{
+	return coords[index(j,k)];
+}
+
+bool MagMapping::setCoords(uint j, uint k, const Vec3D &coord)
+{
+	if(j>=numTheta || k>=numPhi)
+	{
+		printErrMess(__FILE__, __LINE__, "pixel index out of bounds, theta: " + to_string(j) + "/" + to_string(numTheta) + " phi: " + to_string(k) + "/" + to_string(numPhi));
+		return false;
+	}
+
+	coords[index(j,k)] = coord;
+	return true;
+}
+
 hcFloat MagMapping::getHeight() const
 {
 	return height;
@@ -276,7 +326,7 @@ bool MagMapping::exportBinary(const string &filename)
 {
     if(!createFolderStructureTo(filename.data()) || boost::filesystem::is_directory(filename.data()))
     {
-        cerr << __FILE__ << "/" << __LINE__ << ": File '" << filename << "' cannot not be created!\n";
+        printErrMess(__FILE__, __LINE__, "file '" + filename + "' cannot not be created");
         return false;
     }
 
@@ -296,8 +346,9 @@ bool MagMapping::exportBinary(const string &filename)
 
     for(uint i=0; i<numTheta*numPhi; ++i)
     {
-        file.write(reinterpret_cast<char*>(&coords[i](0)),sizeofFloat);
+    	file.write(reinterpret_cast<char*>(&coords[i](0)),sizeofFloat);
         file.write(reinterpret_cast<char*>(&coords[i](1)),sizeofFloat);
+        file.write(reinterpret_cast<char*>(&coords[i](2)),sizeofFloat);
     }
 
     for(uint j=0; j<numTheta; ++j)
@@ -311,11 +362,7 @@ bool MagMapping::exportBinary(const string &filename)
 
 bool MagMapping::importBinary(const string &filename)
 {
-    if(!doesFileExist(filename))
-    {
-        cerr << __FILE__ << ":" << __LINE__ << ": File\n\t'" << filename << "'\n\tdoes not exist\n";
-        return false;
-    }
+	if(!doesFileExist(filename)) return false;
 
     PFSSsolutionInfo inf;
     ifstream stream;
@@ -338,7 +385,8 @@ bool MagMapping::importBinary(const string &filename)
     for(uint i=0; i<numTheta*numPhi; ++i)
     {
         stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); coords[i](0) = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
-        stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); coords[i](0) = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
+        stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); coords[i](1) = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
+        stream.read(reinterpret_cast<char*>(tempFloat),	sizeoffloat); coords[i](2) = sizeoffloat==4 ? *(reinterpret_cast<float*>(tempFloat)) : *(reinterpret_cast<double*>(tempFloat));
     }
 
     for(uint j=0; j<numTheta; ++j)
@@ -418,7 +466,7 @@ hcFloat MagMapping::getOpenFlux()
 			Magline &magl 	= this->operator()(t, p);
 			if(magl.closed || !magl.valid) continue;										// consider only maglines that are open
 
-			Vec2D &pos				= coords[index(t,p)];
+			Vec3D &pos				= coords[index(t,p)];
 			hcFloat dSinTheta		= 2*maxSinLat/(numTheta-1);
 			hcFloat upperPixBound	= PI/2.0 - asin(maxSinLat - (t-1.0/2.0) * dSinTheta);
 			hcFloat lowerPixBound	= PI/2.0 - asin(maxSinLat - (t+1.0/2.0) * dSinTheta);
@@ -434,7 +482,7 @@ hcFloat MagMapping::getOpenFlux()
 
 			if(num == 0)
 			{
-				printStdOutMess(__FILE__, __LINE__, "no intersection points found. This message should not be possible.");
+				printStdOutMess(__FILE__, __LINE__, "no intersection points found, his message should not be possible");
 				continue;
 			}
 
@@ -515,6 +563,12 @@ bool MagMapping::createAtHeight(const PFSSsolutionInfo &info, LaplaceSolver &sol
 		retval = createAtHeight_SP(info, solver, height, numTheta, numPhi, maxSinLat, sinLatGrid, compCoords);
 #endif
 
+	if(solver.grid->isElliptical())
+	{
+		EllipticalGrid* eGrid = (EllipticalGrid*)solver.grid;
+		eGrid->convertMagMapping(*this);
+	}
+
 	timeStop.setFromSystemTime();
 	string message 	= "took " + toStr((timeStop-timeStart)/hcDate::facSec) + " s to map with NUMTHREADS=" + to_string(NUMTHREADS);
 	printStdOutMess(__FILE__, __LINE__ , message);
@@ -538,8 +592,8 @@ bool MagMapping::createAtHeight_SP(const PFSSsolutionInfo &info, LaplaceSolver &
             Vec3D pos			= Vec3D(height, theta, phi);
             Vec3D posSpher		= solver.grid->isElliptical() ? pos.convCoordSpher2Ell(*(dynamic_cast<EllipticalGrid*>(solver.grid))) : pos;
             Vec3D posComp		= compCoords ? pos : posSpher;
-            coords[index(j, k)] = Vec2D(posComp[1], posComp[2]);
-
+            //coords[index(j, k)] = Vec2D(posComp[1], posComp[2]);
+            coords[index(j, k)] = posComp;
             magline.createMaglineThroughPos(*solver.grid, posComp, false);
         }
 
@@ -572,7 +626,8 @@ bool MagMapping::createAtHeight_MP(const PFSSsolutionInfo &info, LaplaceSolver &
 		Vec3D posSpher		= grid->isElliptical() ? pos.convCoordSpher2Ell(*egrid) : pos;
 		Vec3D posC			= compCoords ? pos : posSpher;
 
-		coords[i]			= Vec2D(posC[1], posC[2]);
+		//coords[i]			= Vec2D(posC[1], posC[2]);
+		coords[i]			= posC;
 		posComp[i]			= posC;
 		workedUpon[i] 		= false;
 	}
@@ -756,31 +811,23 @@ void MagMapping::createMappingHeader(char *header, hcFloat height, hcFloat *othe
 	strcat(header, "\n#\n");
 }
 
-bool MagMapping::exportImage(string filename)
+bool MagMapping::exportImagePolarity()
 {
-   if(maglines == NULL)
-	{
-		printErrMess(__FILE__, __LINE__, "maglines not initialized");
-		return false;
-	}
+	string fn = getFilename_magMappingImg(info, height, sinLatFormat, compCoords, numTheta, numPhi);
+	if(!checkComputed())		return false;
+	if(!checkExportedFile(fn))	return false;
 
-	if(!createFolderStructureTo(filename.c_str()))
-	{
-		printErrMess(__FILE__, __LINE__, "requested filename '" + filename + "' cannot be created");
-		return false;
-	}
-
-	hcImageRGBA img(numPhi, numTheta);										// debug img at height
+	hcImageRGBA img(numPhi, numTheta);
 
 	for(uint j=0; j<numTheta; ++j)
 		for(uint k=0; k<numPhi; ++k)
 		{
 			uint xi			= k;
 			uint yi			= numTheta - j - 1;
-			Magline &magL   = *maglines[index(j, k)];                       // magline considered
+			Magline &magL   = *maglines[index(j, k)];                       	// magline considered
 			//Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
 
-			if(!magL.valid)				img(xi, yi) = Magline::colorInvalid;
+			if(!magL.valid)				img(xi, yi) = Magline::colorInvalid;	// determine pixel colors
 			else
 			{
 				if(magL.closed)			img(xi, yi)	= Magline::colorClosed;
@@ -792,20 +839,128 @@ bool MagMapping::exportImage(string filename)
 			}
 		}
 
-	return img.save(filename);
+	return img.save(fn);
 }
 
-bool MagMapping::exportFootpointImage(string filename)
+bool MagMapping::exportImageMagfield()
 {
-	if(maglines == NULL)
-	{
-		cerr << __FILE__ << ":" << __LINE__ << " maglines not initialized.\n";
-		return false;
-	}
+	string fn_r = getFilename_magMappingMagfield_r(info, height, sinLatFormat, compCoords, numTheta, numPhi);
+	string fn_t = getFilename_magMappingMagfield_t(info, height, sinLatFormat, compCoords, numTheta, numPhi);
+	string fn_p = getFilename_magMappingMagfield_p(info, height, sinLatFormat, compCoords, numTheta, numPhi);
+	if(!checkComputed())																	return false;
+	if(!checkExportedFile(fn_r) && !checkExportedFile(fn_t) && !checkExportedFile(fn_p))	return false;
 
-	if(!createFolderStructureTo(filename.c_str()))
+	hcFloat dSinLat		= 2*maxSinLat 		/ (numTheta - 1);
+	//hcFloat dLat		= 2*asin(maxSinLat)	/ (numTheta - 1);
+	hcFloat dLong		= 2 * PI / numPhi * 360/ 2.0 / PI;
+	hcFloat crpix1		= (numPhi) 		/ 2.0;
+	hcFloat crpix2		= (numTheta+1) 	/ 2.0;
+	hcFloat crval1		= 180;
+	hcFloat crval2		= 0;
+	hcFloat nullval		= 0.0;
+
+	hcImageFITS img_r(numPhi, numTheta);
+	hcImageFITS img_t(numPhi, numTheta);
+	hcImageFITS img_p(numPhi, numTheta);
+
+	PFSSsolutionInfo info;
+	hcFloat height;
+	bool sinLatFormat, compCoords;
+	uint resTheta, resPhi;
+
+	getParamFromFN_magMapping(fn_r, info, height, sinLatFormat, compCoords, resTheta, resPhi);
+
+	EllipticalGrid egr;
+	if(info.method == METH_ELLIPTICAL)
+		egr.init(info.sinLatFormat, info.maxSinLat, -info.maxSinLat, r_sol, info.rss, info.numR, false, info.ell);
+
+	for(uint j=0; j<numTheta; ++j)
+		for(uint k=0; k<numPhi; ++k)
+		{
+			Magline &magl 	= operator()(j, k);
+			if(!magl.valid)
+			{
+				img_r(k, numTheta - j - 1) = 0.0;
+				img_t(k, numTheta - j - 1) = 0.0;
+				img_p(k, numTheta - j - 1) = 0.0;
+				continue;
+			}
+
+			hcFloat val_r = 0.0;
+			hcFloat val_t = 0.0;
+			hcFloat val_p = 0.0;
+
+			for(uint m=0; m<magl.numSamples; ++m)
+				if((magl.posdata[m] - coords[index(j,k)]).length() < 1E-3)
+				{
+					val_r	= magl.magdata[m][0];
+					val_t	= magl.magdata[m][1];
+					val_p	= magl.magdata[m][2];
+					break;
+				}
+
+			img_r(k, numTheta - j - 1) = val_r;
+			img_t(k, numTheta - j - 1) = val_t;
+			img_p(k, numTheta - j - 1) = val_p;
+		}
+	bool retval 	= true;
+
+	retval &= img_r.save(fn_r);
+	retval &= img_t.save(fn_t);
+	retval &= img_p.save(fn_p);
+
+	hcDate now;
+
+	for(uint i=0; i<3; ++i)
 	{
-		printErrMess(__FILE__, __LINE__, "requested filename '" + filename + "' cannot be created");
+		hcImageFITS &img = (i==0 ? img_r : (i==1 ? img_t : img_p));
+		stringstream comment;
+		comment << "This file was generated by the PFSS program (version: " << PFSS_VER_MAJ << ":" << PFSS_VER_MIN << ") developed at IEAP, Kiel university, Author: Martin A. Kruse (kruse@physik.uni-kiel.de), File generated: " << now.toString() << " ";
+		img.writeKeyComment(comment.str()); comment.str("");
+
+		if(info.method == METH_ELLIPTICAL)
+		{
+			if(compCoords)
+			{
+				comment << "WARNING: This map uses computational coordinates in an elliptical grid. ";
+				comment << "World coordinates presented in this file have to be transformed using the coordinate transformations from elliptic to cartesian/spheric coordinates.";
+			}
+			comment << "The elliptical PFSS solver and its data products have not been thoroughly reviewed.";
+		}
+		comment << "Parameters of the PFSS solution: Model: " << getStringFromModelID(info.model) << ", group: " << getStringFromGroupID(info.group) << ", method: " << getStringFromMethodID(info.method);
+		comment << "rss: " << info.rss / r_sol << " r_sol, ellipticity: " << info.ell << ", SHC order: " << info.orderSHC << ", numR: " << info.numR << ", numTeta: " << info.numTheta << ", numPhi: " << info.numPhi;
+		comment << ", dailyID: " << info.dailyID << ", computation time: " << info.computationTime << ", date computed: " << info.dateComputed.toString();
+		img.writeKeyComment(comment.str()); comment.str("");
+
+	//	expansion.writeKeyFloat("DSINLAT", "Spacing in Sine-Latitude direction", dSinLat);
+		img.writeKeyFloat("MAXSL", "max(sin(latitude)), northern sin(latitude) of image boundary", maxSinLat);
+		img.writeKeyString("CTYPE1", "longitude", "CRLN-CEA");
+		img.writeKeyString("CTYPE2", "sine latitude", "CRLT-CEA");
+		//expansion.writeKeyString("CTYPE1", "", "HPLN-TAN");
+		//expansion.writeKeyString("CTYPE2", "", "HPLT-TAN");
+		img.writeKeyFloat("CDELT1", "coordinate increment along axis 1", dLong);
+		img.writeKeyFloat("CDELT2", "coordinate increment along axis 2", dSinLat);
+		img.writeKeyFloat("CRPIX1", "coord. system reference pixel 1", crpix1);
+		img.writeKeyFloat("CRPIX2", "coord. system reference pixel 2", crpix2);
+		img.writeKeyFloat("CRVAL1", "coordinate at ref. pixel 1", crval1);
+		img.writeKeyFloat("CRVAL2", "coordinate at ref. pixel 2", crval2);
+		img.writeKeyFloat("CROTA1", "coord. system rotation angle 1", nullval);
+		img.writeKeyFloat("CROTA2", "coord. system rotation angle 2", nullval);
+		img.writeKeyString("BUNIT", "unit of pixel values", "GAUSS");
+		img.writeKeyString("CUNIT1", "coordinate unit 1", "degree");
+		img.writeKeyString("CUNIT2", "coordinate unit 2", "sinlat");
+		img.writeKeyString("WCSNAME", "World Coordinate system name", "Heliographic");
+	}
+	return retval;
+}
+
+bool MagMapping::exportImageFootpoint(string fn)
+{
+	if(!checkComputed())	return false;
+
+	if(!createFolderStructureTo(fn.c_str()))
+	{
+		printErrMess(__FILE__, __LINE__, "requested file '" + fn + "' cannot be created");
 		return false;
 	}
 
@@ -824,10 +979,8 @@ bool MagMapping::exportFootpointImage(string filename)
 		for(uint k=0; k<numPhi; ++k)
 		{
 			Magline &magL   = *maglines[index(j, k)];                       // magline considered
-			//Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
 			Vec2D foot		= Vec2D(magL.posdata[0][1], magL.posdata[0][2]);// footpoint on photosphere (one of them if magline closed)
 			int x			= (uint)round(foot[1]*tfX);						// img position of footpoint
-			//int y			= numTheta - 1 - (int)round((sin(PI/2.0-foot[0])-minSinLat)*tfY);
 			uint y			= (uint)round((sin(PI/2.0-foot[0])-minSinLat)*tfY);
 
 			if(magL.valid && y<numTheta)
@@ -841,7 +994,7 @@ bool MagMapping::exportFootpointImage(string filename)
 			}
 		}
 
-	return imgFoot.save(filename.c_str());
+	return imgFoot.save(fn.c_str());
 }
 
 /*! outputs textfiles where every line corresponds to one pixel position of the map
@@ -850,15 +1003,11 @@ bool MagMapping::exportFootpointImage(string filename)
  */
 bool MagMapping::exportASCII(string filename, hcFloat *heights, uint numHeights, hcFloat lowerR, hcFloat upperR)
 {
-    if(maglines == NULL)
-    {
-        cerr << __FILE__ << ":" << __LINE__ << " maglines not initialized\n";
-        return false;
-    }
+	if(!checkComputed())	return false;
 
 	if(!createFolderStructureTo(filename.c_str()))
 	{
-		cerr << __FILE__ << ":" << __LINE__ << " Requested filename \n'" << filename << "'\ncannot be created\n";
+		printErrMess(__FILE__, __LINE__, "requested file '" + filename + "' cannot be created");
 		return false;
 	}
 
@@ -874,12 +1023,13 @@ bool MagMapping::exportASCII(string filename, hcFloat *heights, uint numHeights,
         for(uint k=0; k<numPhi; ++k)
         {
             Magline &magL   = *maglines[index(j, k)];                       // magline considered
-            Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
+            //Vec2D &coord    = coords[index(j, k)];							// pivot coordinates of magline
+            Vec3D &coord    = coords[index(j, k)];							// pivot coordinates of magline
             uint indL		= 0;
             uint indU		= magL.numSamples - 1;
 
             outputstring[0] = '\0';
-            sprintf(outputstring, "%E %E ", coord[0], coord[1]);
+            sprintf(outputstring, "%E %E %E ", coord[0], coord[1], coord[2]);
 
             if(!magL.valid)                	strcat(outputstring, "I - - / - -");
             else
@@ -926,9 +1076,12 @@ bool MagMapping::exportASCII(string filename, hcFloat *heights, uint numHeights,
 }
 
 
-bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &fn_fits, const string &fn_bitmap)
+bool MagMapping::exportExpansionFactorImage()
 {
-	//TODO
+	string fn = getFilename_magMappingExpansion(info, height, sinLatFormat, compCoords, numTheta, numPhi);
+	if(!checkComputed())		return false;
+	if(!checkExportedFile(fn))	return false;
+
 	hcFloat dSinLat		= 2*maxSinLat 		/ (numTheta - 1);
 	//hcFloat dLat		= 2*asin(maxSinLat)	/ (numTheta - 1);
 	hcFloat dLong		= 2 * PI / numPhi * 360/ 2.0 / PI;
@@ -939,13 +1092,6 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 	hcFloat nullval		= 0.0;
 
 	hcImageFITS expansion(numPhi, numTheta);
-
-	if(grid->isElliptical())
-	{
-		printErrMess(__FILE__, __LINE__, "you are using untested code, please review it");
-		EllipticalGrid* eGrid = (EllipticalGrid*)grid;
-		eGrid->convertMagMapping(*this);
-	}
 
 	for(uint j=0; j<numTheta; ++j)
 		for(uint k=0; k<numPhi; ++k)
@@ -966,9 +1112,9 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 		}
 	bool retval 	= true;
 
-	retval &= expansion.save(fn_fits.data());
+	retval &= expansion.save(fn);
 
-	/*
+	/*//	This creates a bitmap image of the expansion factor, please use this only for debugging
 	hcFloat valMax	= 10000;
 	hcFloat valMin	= 1;
 	hcFloat conv	= 255 / log10(valMax/valMin);
@@ -995,7 +1141,7 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 	bool sinLatFormat, compCoords;
 	uint resTheta, resPhi;
 
-	getParamFromFN_magMapping(fn_fits, info, height, sinLatFormat, compCoords, resTheta, resPhi);
+	getParamFromFN_magMapping(fn, info, height, sinLatFormat, compCoords, resTheta, resPhi);
 
 	if(info.method == METH_ELLIPTICAL)
 	{
@@ -1010,8 +1156,6 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 	comment << "rss: " << info.rss / r_sol << " r_sol, ellipticity: " << info.ell << ", SHC order: " << info.orderSHC << ", numR: " << info.numR << ", numTeta: " << info.numTheta << ", numPhi: " << info.numPhi;
 	comment << ", dailyID: " << info.dailyID << ", computation time: " << info.computationTime << ", date computed: " << info.dateComputed.toString();
 	expansion.writeKeyComment(comment.str()); comment.str("");
-
-//	expansion.writeKeyFloat("DSINLAT", "Spacing in Sine-Latitude direction", dSinLat);
 	expansion.writeKeyFloat("MAXSL", "max(sin(latitude)), northern sin(latitude) of image boundary", maxSinLat);
 	expansion.writeKeyString("CTYPE1", "longitude", "CRLN-CEA");
 	expansion.writeKeyString("CTYPE2", "sine latitude", "CRLT-CEA");
@@ -1028,106 +1172,6 @@ bool MagMapping::exportExpansionFactorImage(SphericalGrid *grid, const string &f
 	expansion.writeKeyString("CUNIT1", "coordinate unit 1", "degree");
 	expansion.writeKeyString("CUNIT2", "coordinate unit 2", "sinlat");
 	expansion.writeKeyString("WCSNAME", "World Coordinate system name", "Heliographic");
-	return retval;
-}
-
-bool MagMapping::exportMagfieldImage(SphericalGrid *grid, const string &fn_fits)
-{
-	hcFloat dSinLat		= 2*maxSinLat 		/ (numTheta - 1);
-	//hcFloat dLat		= 2*asin(maxSinLat)	/ (numTheta - 1);
-	hcFloat dLong		= 2 * PI / numPhi * 360/ 2.0 / PI;
-	hcFloat crpix1		= (numPhi) / 2.0;
-	hcFloat crpix2		= (numTheta+1) / 2.0;
-	hcFloat crval1		= 180;
-	hcFloat crval2		= 0;
-	hcFloat nullval		= 0.0;
-
-	hcImageFITS img(numPhi, numTheta);
-
-	//TODO: the following needs to be already done!!
-	/*
-	if(grid->isElliptical())
-	{
-		EllipticalGrid* eGrid = (EllipticalGrid*)grid;
-		eGrid->convertMagMapping(*this);
-	}//*/
-
-	for(uint j=0; j<numTheta; ++j)
-		for(uint k=0; k<numPhi; ++k)
-		{
-			Magline &magl 	= operator()(j, k);
-			if(!magl.valid)
-			{
-				img(k, numTheta - j - 1) = 0.0;
-				continue;
-			}
-
-			hcFloat val = 0.0;
-			Vec3D pos[MAGLINE_NUM_POSITIONS], mag[MAGLINE_NUM_POSITIONS];
-			int numPos = magl.getAllValuesAtHeight(this->height, pos, mag);
-			if(numPos > 0)
-			{
-				Vec2D posCoord = coords[index(j,k)];
-				for(int l=0; l<numPos; ++l)
-				{
-					Vec2D pos_t = Vec2D(pos[l][1], pos[l][2]);
-					if((pos_t-posCoord).length() < 1E-2)
-					{
-						val = mag[l][0];	// radial component of magfield
-						break;
-					}
-				}
-			}
-
-			img(k, numTheta - j - 1) = val;
-		}
-	bool retval 	= true;
-
-	retval &= img.save(fn_fits.data());
-
-	hcDate now; now.setFromSystemTime();
-	stringstream comment;
-	comment << "This file was generated by the pfss program (version: " << PFSS_VER_MAJ << ":" << PFSS_VER_MIN << ") developed at IEAP, Kiel university, Author: Martin A. Kruse (kruse@physik.uni-kiel.de), File generated: " << now.toString() << " ";
-	img.writeKeyComment(comment.str()); comment.str("");
-
-	PFSSsolutionInfo info;
-	hcFloat height;
-	bool sinLatFormat, compCoords;
-	uint resTheta, resPhi;
-
-	getParamFromFN_magMapping(fn_fits, info, height, sinLatFormat, compCoords, resTheta, resPhi);
-
-	if(info.method == METH_ELLIPTICAL)
-	{
-		if(compCoords)
-		{
-			comment << "WARNING: This map uses computational coordinates in an elliptical grid. ";
-			comment << "World coordinates presented in this file have to be transformed using the coordinate transformations from elliptic to cartesian/spheric coordinates.";
-		}
-		comment << "The elliptical PFSS solver and its data products have not been thoroughly revied.";
-	}
-	comment << "Parameters of the PFSS solution: Model: " << getStringFromModelID(info.model) << ", group: " << getStringFromGroupID(info.group) << ", method: " << getStringFromMethodID(info.method);
-	comment << "rss: " << info.rss / r_sol << " r_sol, ellipticity: " << info.ell << ", SHC order: " << info.orderSHC << ", numR: " << info.numR << ", numTeta: " << info.numTheta << ", numPhi: " << info.numPhi;
-	comment << ", dailyID: " << info.dailyID << ", computation time: " << info.computationTime << ", date computed: " << info.dateComputed.toString();
-	img.writeKeyComment(comment.str()); comment.str("");
-
-//	expansion.writeKeyFloat("DSINLAT", "Spacing in Sine-Latitude direction", dSinLat);
-	img.writeKeyFloat("MAXSL", "max(sin(latitude)), northern sin(latitude) of image boundary", maxSinLat);
-	img.writeKeyString("CTYPE1", "longitude", "CRLN-CEA");
-	img.writeKeyString("CTYPE2", "sine latitude", "CRLT-CEA");
-	//expansion.writeKeyString("CTYPE1", "", "HPLN-TAN");
-	//expansion.writeKeyString("CTYPE2", "", "HPLT-TAN");
-	img.writeKeyFloat("CDELT1", "coordinate increment along axis 1", dLong);
-	img.writeKeyFloat("CDELT2", "coordinate increment along axis 2", dSinLat);
-	img.writeKeyFloat("CRPIX1", "coord. system reference pixel 1", crpix1);
-	img.writeKeyFloat("CRPIX2", "coord. system reference pixel 2", crpix2);
-	img.writeKeyFloat("CRVAL1", "coordinate at ref. pixel 1", crval1);
-	img.writeKeyFloat("CRVAL2", "coordinate at ref. pixel 2", crval2);
-	img.writeKeyFloat("CROTA1", "coord. system rotation angle 1", nullval);
-	img.writeKeyFloat("CROTA2", "coord. system rotation angle 2", nullval);
-	img.writeKeyString("CUNIT1", "coordinate unit 1", "degree");
-	img.writeKeyString("CUNIT2", "coordinate unit 2", "sinlat");
-	img.writeKeyString("WCSNAME", "World Coordinate system name", "Heliographic");
 	return retval;
 }
 

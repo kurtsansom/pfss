@@ -43,7 +43,6 @@ void printInt128(int128 value)
     uint counter 		= 0;
     while (value != 0)
     {
-        int lastDigit 		= value % 10;
         tempstr[counter++] 	= "0123456789"[value % 10];   // save last digit
         value 				/= 10;                        // drop it
     }

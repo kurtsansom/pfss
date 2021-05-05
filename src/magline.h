@@ -28,8 +28,6 @@ public:
     uint numSamples;    /*!< \brief number of points where the magline has been sampled             				*/
     Vec3D *magdata;     /*!< \brief array of magnetic field strengths where magline has been sampled (spherical) 	*/
     Vec3D *posdata;     /*!< \brief array of positions where magline has been sampled (spherical)   				*/
-    //hcFloat *curvature;	/*!< \brief unsigned curvature of the magline at all sample points							*/
-    //char flag;			/*!< \brief 0=invalid, 1=closed, 2=positive, 3=negative, 4=man.+, 5=man.-					*/
 
     bool closed;        /*!< \brief does the magline connect two points on the phtotosphere?        				*/
     bool valid;         /*!< \brief are there valid values in magdata and posdata?                  				*/
@@ -45,8 +43,6 @@ public:
     void initNULL();
     void clear();
 
-    //bool computeCurvature();
-
     Vec3D getMagVec(uint num);
     	/*!< \brief returns magnetic vector at given numerical position in array										*/
 
@@ -58,9 +54,6 @@ public:
 
     int getAllValuesAtHeight(hcFloat height, Vec3D *posData, Vec3D *magData);
     	/*!< \brief returns number of positions where this maglines pierces through a specific height					*/
-
-    //bool getCurvatureAtHeight(hcFloat height, hcFloat &curvature);
-    	/*!< \brief (linearily) interpolates curvature values at height													*/
 
     unsigned char createMaglineThroughPos(	SphericalGrid &grid, const Vec3D &posParam,
     										bool debug, hcFloat epsMin=1E1, hcFloat epsMax=1E2);
