@@ -95,15 +95,6 @@ public:
     virtual bool save(const string &filename);
     	/*!< \brief stores photospheric magfield in FITS format to be re-imported later on			*/
 
-    virtual void addHomWhiteNoise(float sigma, uint seed);
-		/*!< \brief adds white noise by adding gaussian distributed value							*/
-
-	virtual void addPixelNoise(float fraction, uint seed);
-		/*!< \brief adds noise to each pixel seperately by adding normal distributed values with sigma = fraction * pixelValue	*/
-
-	virtual void addSignedFractionNoise(float fraction, uint seed);
-		/*!< \brief adds +/- fraction * pixel value to each pixel									*/
-
     void dump() const;
     	/*!< \brief dumps information on this instance to stdout									*/
 };

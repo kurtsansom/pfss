@@ -70,9 +70,9 @@ public:
 
     hcFloat crosscor(const hcImageFITS &other, uint i, uint j);
 
-    void fft(hcImageFITS &real, hcImageFITS &imag);
+    //void fft(hcImageFITS &real, hcImageFITS &imag);
 
-    bool fft_inv(hcImageFITS &real, hcImageFITS &imag);
+    //bool fft_inv(hcImageFITS &real, hcImageFITS &imag);
 
     static void initStaticMembers();
 };

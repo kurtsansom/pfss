@@ -1,26 +1,28 @@
 #-----------------------------------------------------------------------------
 # PFSS
 #-----------------------------------------------------------------------------
-
 MAKEFILE      = Makefile
 VERSION_MAJOR	= 0						# Major Version Number
-VERSION_MINOR	= 1						# Minor Version Number
-
+VERSION_MINOR	= 2						# Minor Version Number
 ####### Compiler, tools and options
-
 CUDA			= 1
 DEFINES       	=  -D_DEBUG
 DEFINES			+= -DhcFloat=float		# floating point precision to be used
-DEFINES			+= -DNUMTHREADS=12		# number of thread to be used in multi-threaded computations
+DEFINES			+= -DNUMTHREADS=12		# number of threads to be used in multi-threaded computations
 DEFINES			+= -DSPRO=1 -DMPRO=2 -DMCUDA=3 -DMAGMAPPING=MPRO # magnetic mapping to be computed by single thread (SPRO), multiple threads (MPRO) or CUDA (do not use that last one, its not efficient)
-#DEFINES		+= -DTODO				# shows hints where improvements are due
-#DEFINES			+= -DPRESENTATION		# better visibility for presentation
 DEFINES			+= -DRSCALE				# scales radial coordinates by a factor of r_sol for numeric stability
 DEFINES			+= -DREMOVEMONOPOLE		# removes artificial magnetic monopole from magnetograms (WSO does not remove monopole from their data before SHC computation, see their coefficient files)
 DEFINES			+= -DVERBOSE			# gives more output
 DEFINES			+=-DPFSS_VER_MAJ=${VERSION_MAJOR}
 DEFINES			+=-DPFSS_VER_MIN=${VERSION_MINOR}
-
+####### Default parameters
+DEFINES			+= -DDEFAULT_RES_COMP_R=35		# radial resolution of numerical grid
+DEFINES			+= -DDEFAULT_RES_MAP_THETA=200	# meridional resolution of magnetic mapping files
+DEFINES			+= -DDEFAULT_RES_MAP_PHI=400	# zonal resolution of magnetic mapping files
+DEFINES			+= -DDEFAULT_RSS=2.5			# source surface radius in multiples of r_sol
+DEFINES			+= -DDEFAULT_ELL=1.0			# ellipticity of source surface (spherical = 1.0)
+DEFINES			+= -DDEFAULT_SHC_ORDER=9		# maximum principal order of SHC approach
+ 
 
 ifeq ($(CUDA), 1)
 	DEFINES		+= -DCUDA
@@ -46,11 +48,9 @@ LINK          	= g++
 LFLAGS        	= -O0	
 LIBS			+= -lpthread 											# Multiprocessing library
 LIBS			+= -lcfitsio 											# FITS library
-LIBS			+= -lgsl -lgslcblas										# Gnu Science Library 
 LIBS			+= -lboost_system -lboost_filesystem -lboost_regex		# Boost libraries
-LIBS			+= -lfftw3												# Fast Fourier Transform library
 LIBS			+= -lfreeimage											# Image processing library
-LIBS			+= -l:cspice.a -lm										# NAIF spice library
+LIBS			+= -lm
 DEL_FILE      	= rm -f
 DEL_DIR       	= rmdir
 
@@ -111,12 +111,16 @@ CUDAOBJ_IN_DIR = $(addprefix $(DST_DIR), $(CUDA_OBJECTS))
 
 TARGET        = pfss
 
-
 first: all
 
 ####### Build rules
 
 all: $(TARGET)
+
+documentation:
+	doxygen doc/Doxyfile
+	make -C doc/latex/ pdf
+	cp doc/latex/refman.pdf doc/documentation.pdf
 
 $(TARGET):  $(OBJECTS_IN_DIR) $(CUDAOBJ_IN_DIR)	
 ifeq ($(CUDA), 1)

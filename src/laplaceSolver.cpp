@@ -362,7 +362,7 @@ void LaplaceSolver::iterateElliptic_MT()
 			}
 	}
 
-	while(numRunningThreads > 0)	usleep(100);
+	while(numRunningThreads > 0)	usleep(1);
 
 	delete [] workedUpon;
 }

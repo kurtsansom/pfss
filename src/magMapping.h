@@ -139,8 +139,11 @@ public:
     bool exportASCII(string filename, hcFloat *heights, uint numHeights, hcFloat lowerR, hcFloat sourceSurfaceR);
 		/*!< \brief exports mag mapping with connection to several height levels to txt- and image-file 	*/
 
-    bool exportExpansionFactorImage();
+    bool exportImageExpansionFactor();
         /*!< \brief export expansion factor of magnetic field lines in this map								*/
+
+    bool exportImageExpansionFactorMax();
+        /*!< \brief export maximum expansion factor of magnetic field lines in this map						*/
 
     bool exportImageMagfield();
     	/*!< \brief export magnetic field at this height													*/

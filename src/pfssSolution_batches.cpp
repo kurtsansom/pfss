@@ -15,34 +15,23 @@ extern string dirData;
 
 /*! @param	inDir					direcory to be worked upon
  * 	@param	r_ss					heliocenric position of source surface
- *	@param	compResR				radial resolution of computational grid
- * 	@param	compResTheta			meridional resolutions of computational grid
- * 	@param	compResPhi				zonal resolution of computational grid
- * 	@param	rDist					distribution of radial grid shells (use 0 for equidistant spacing in r-direction)
- * 	@param	geomIncFactor			geometric increment factor for non-equidistant r-spacing
- * 	@param	mapResTheta				meridional resolution of magnetic mapping
- * 	@param	mapResPhi				zonal resolution of magnetic mapping
- * 	@param	mapIntermediateHeights	true, if for each r-shell of the comp grid a magnetic mapping is to be computed
+ *	@param	resCompR				radial resolution of computational grid
+ *	@param	order					maximum principal order of SHC approach
  */
-bool PFSSsolution::batchKielSHC(const char *inDir, hcFloat r_ss,
-		uint compResR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights)
+bool PFSSsolution::batchKielSHC(const string &inDir, hcFloat r_ss, uint resCompR, uint order)
 {
     if (!exists(inDir) || !is_directory(inDir))
     {
-    	printf("ERROR!\tPFSSsoluion::batchKielSHC\n\t input directory '%s' does not exist\n", inDir);
+    	printErrMess(__FILE__, __LINE__, "input directory '" + inDir + "' does not exist");
         return false;
     }
 
     if(!isDirSet()) return false;
 
-	cout << "--------------------------------------------------------------------\n";
-	cout << "-- PFSS::batchKielSHC on dir: '" << inDir << "'\n";
-	cout << "-- r_ss:        " << r_ss /r_sol	<< " r_sol\n";
-	cout << "-- compResR:    " << compResR 		<< "\n";
-	cout << "-- mapResTheta: " << mapResTheta 	<< "\n";
-	cout << "-- mapResPhi:   " << mapResPhi 	<< "\n";
-	cout << "--------------------------------------------------------------------\n\n";
-	fflush(stdout);
+    printStdOutMess(__FILE__, __LINE__, "started batch computation (SHC) on directory '" + inDir + "'");
+    printStdOutMess(__FILE__, __LINE__, "\tr_ss:        " + toStr(r_ss /r_sol) + " r_sol");
+    printStdOutMess(__FILE__, __LINE__, "\torder: 		" + toStr(order));
+    printStdOutMess(__FILE__, __LINE__, "\tresCompR:    " + toStr(resCompR));
 
     path directory(inDir);
     directory_iterator end_iter;
@@ -51,19 +40,16 @@ bool PFSSsolution::batchKielSHC(const char *inDir, hcFloat r_ss,
         if (is_regular_file(dir_iter->status()))
         {
         	string filename = dir_iter->path().string();
-			cout << "Working on file '" << filename << "'\n";fflush(stdout);
-            computeAndMapKielSHC(filename, 9, r_ss, compResR, mapResTheta, mapResPhi, mapIntermediateHeights);
+        	printStdOutMess(__FILE__, __LINE__, "working on file '" + filename + "'");
+            computeKielSHC(filename, order, r_ss, resCompR);
         }
         else
         {
-            printf("ERROR! HelioMagfield::batchKielSHC: file %s is not a regular file!\n", dir_iter->path().c_str());
+            printErrMess(__FILE__, __LINE__, "file '" + string(dir_iter->path().c_str()) + "' is not a regular file");
             continue;
         }
 
-    printf("--------------------------------------------------------------------------\n");
-    printf("--- INFO: PFSSsolution::batchKielSHC concluded. \n");
-    printf("--------------------------------------------------------------------------\n\n");
-    return true;
+	return true;
 }
 
 /*! opens inDir and computes PFSS model for each photospheric map as well as
@@ -86,7 +72,7 @@ bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,	uint resComp
 
     if(!isDirSet()) return false;
 
-    printStdOutMess(__FILE__, __LINE__, "started batch computation on directory '" + inDir + "'");
+    printStdOutMess(__FILE__, __LINE__, "started batch computation (numeric) on directory '" + inDir + "'");
     printStdOutMess(__FILE__, __LINE__, "\tr_ss:        " + toStr(r_ss /r_sol) + " r_sol");
     printStdOutMess(__FILE__, __LINE__, "\tellipticity: " + toStr(ellipticity));
     printStdOutMess(__FILE__, __LINE__, "\tresCompR:    " + toStr(resCompR));
@@ -110,20 +96,22 @@ bool PFSSsolution::batchKielGrid(const string &inDir, hcFloat r_ss,	uint resComp
     return true;
 }
 
-bool PFSSsolution::batchMap(uint resMapTheta, uint resMapPhi, bool mapIntermediateHeights)
+bool PFSSsolution::batchMap(uint resMapTheta, uint resMapPhi, hcFloat height)
 {
     if(!isDirSet()) return false;
 
     printStdOutMess(__FILE__, __LINE__, "started batch mapping on directory '" + dirData + "'");
 
 	directory_iterator end_iter;
+	cmatch what;
+	regex pattern(".*/([0-9]{4})$", regex::icase);
 
 	for (directory_iterator dir_iter(dirData) ; dir_iter != end_iter ; ++dir_iter)
-		if(is_directory(dir_iter->status()))
+		if(is_directory(dir_iter->status()) && regex_search(dir_iter->path().c_str(), what, pattern))
 			for (directory_iterator dir_iter2(dir_iter->path().c_str()) ; dir_iter2 != end_iter ; ++dir_iter2)
 				if (is_regular_file(dir_iter2->status()))
 					if(isFileType_pfssSolutionConfig(dir_iter2->path().string()))
-						loadAndMapKielGrid(dir_iter2->path().string(), resMapTheta, resMapPhi, mapIntermediateHeights);
+						loadAndMapKielGrid(dir_iter2->path().string(), resMapTheta, resMapPhi, height);
     return true;
 }
 

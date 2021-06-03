@@ -109,8 +109,7 @@ string getFilename_pfssSolutionInfo(const PFSSsolutionInfo &info)
     PFSSsolutionInfo inf_m;
     if(!getParamFromFN_pfssSolutionInfo(retval.str(), inf_m))
     {
-    	cerr << __FILE__ << ":" << __LINE__ << ": Regex does not match. Filename:\n";
-		cout << retval.str() << "\n";
+    	printErrMess(__FILE__, __LINE__, "parameters cannot be extracted from filename '" + retval.str() + "'");
 		exit(1);
     }
 
@@ -199,6 +198,18 @@ string getFilename_magMappingExpansion(	const PFSSsolutionInfo &info, hcFloat he
 										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
 {
 	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_expansion.fits");
+}
+
+string getFilename_magMappingExpansionMax(	const PFSSsolutionInfo &info, hcFloat height,
+											bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
+{
+	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_expansionMax.fits");
+}
+
+string getFilename_magMappingExpansionDiff(	const PFSSsolutionInfo &info, hcFloat height,
+											bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi)
+{
+	return getFilename_magMappingExt(info, height, sinLatFormat, compCoords, resTheta, resPhi, "_expansionDiff.fits");
 }
 
 string getFilename_magMappingExpansionBitmap(	const PFSSsolutionInfo &info, hcFloat height,
@@ -417,11 +428,11 @@ originID getOriginIDfromPhotFilename(const string &fn)
 	pattern.assign(".*[0-9]{4}_.*_.*\\.fits$", boost::regex::icase);
 	if (boost::regex_match(fn, pattern))	return ORIGIN_OWN;
 
-    cerr << __FILE__ << ":" << __LINE__ << ": instrument cannot not be identified from filename\n" << fn << "\n\n";
+	printErrMess(__FILE__, __LINE__, "instrument cannot not be identified from filename '" + fn + "'");
     return ORIGIN_UNKNOWN;
 }
 
-bool getParamFromFN_pfssSolutionInfo(string filename, PFSSsolutionInfo &info)
+bool getParamFromFN_pfssSolutionInfo(const string& filename, PFSSsolutionInfo &info)
 {
 	cmatch what;
 	if(regex_search(filename.data(), what, pat_pfssSolutionInfo))
@@ -443,9 +454,7 @@ bool getParamFromFN_pfssSolutionInfo(string filename, PFSSsolutionInfo &info)
 
 		if(ell<1.0)	ell = 1.0/(round(1.0/ell*100)/100.0);	// TODO: this has to be done because only three digits are being stored in filename
 
-		//cout << "getParamFromFN_pfssSolutionInfo ell: " << ell << "\n";
-
-		regex daily("(.*)([0-9]*)", 				regex::icase);
+		regex daily("(.*)([0-9]*)", regex::icase);
 		cmatch wha;
 
 		originID magnetometer;
@@ -464,11 +473,11 @@ bool getParamFromFN_pfssSolutionInfo(string filename, PFSSsolutionInfo &info)
 		SynopticInfo synInf;
 		synInf.init(magnetometer, 0.0, cr, dailyID); //maxSinLat is not part of the filename, so we cannot extract it
 		info.init(synInf, sizeof(hcFloat), model, method, group, rss*r_sol, ell, orderSHC, numR, numT, numP);
-
+		//info.dump();
 		return true;
 	}
 
-	//cout << "regex no match\n";
+	printErrMess(__FILE__, __LINE__, "regex '" + pat_pfssSolutionInfo.str() + "' does not match filename '" + filename + "''");
 	return false;
 }
 

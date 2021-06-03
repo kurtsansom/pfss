@@ -49,7 +49,7 @@ public:
     LaplaceSolver &getSolver();
     	/*!< \brief returns reference to solver member variable													*/
 
-    bool loadPhotBoundary(const string &filename, uint seed=0, uint scaleMethod=7);
+    bool loadPhotBoundary(const string &filename, uint scaleMethod=7);
         /*!< \brief loads magnetic map of photosphere and initializes this object       						*/
 
     bool save();
@@ -58,7 +58,7 @@ public:
     bool load(const string &cfgFN);
         /*!< \brief loads precomputed solution into this object                         						*/
 
-    bool computeKielSHC(const string &filename, uint order, hcFloat r_ss, uint compResR);
+    bool computeKielSHC(const string &filename, uint order, hcFloat r_ss, uint resCompR);
     	/*!< \brief compute solution according to Spherical Harmonic Coefficient approach						*/
 
     bool computeKielGrid(const string &filename, const string &optionalID, hcFloat r_ss,
@@ -85,7 +85,7 @@ public:
 			hcFloat ellipticity, uint scaleMethod=7);
     	/*!< \brief computes and maps Kiel grid approach														*/
 
-    bool loadAndMapKielGrid(const string &filename, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights=false);
+    bool loadAndMapKielGrid(const string &filename, uint mapResTheta, uint mapResPhi, hcFloat height=0.0);
 		/*!< \brief loads Kiel grid solution and computes mapping												*/
 
 	bool loadAndMapStanfordSHC(const char *photFilename, const char *StanfordCoeffFilename,
@@ -96,14 +96,13 @@ public:
 // pfssSolution_batches
 // ---------------------------------------------------------------------------------------------------------------
 
-	bool batchKielSHC(const char *inDir, hcFloat r_ss,
-			uint compResR, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights);
+	bool batchKielSHC(const string &inDir, hcFloat r_ss, uint resCompR, uint order);
 		/*!< \brief computes and maps Kiel SHC approach for all files in inDir									*/
 
 	bool batchKielGrid(const string &inDir, hcFloat r_ss, uint resCompR, hcFloat ellipticity=1.0);
 		/*!< \brief computes and maps Kiel grid approach for all files in inDir									*/
 
-	bool batchMap(uint resMapTheta, uint resMapPhi, bool mapIntermediateHeights);
+	bool batchMap(uint resMapTheta, uint resMapPhi, hcFloat height=0.0);
 		/*!< \brief compute maps for all computes solutions in dirData											*/
 
 	void paramStudyThresh(const char *inDir,

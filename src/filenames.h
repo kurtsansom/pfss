@@ -59,6 +59,14 @@ string getFilename_magMappingExpansion(	const PFSSsolutionInfo &info, hcFloat he
 										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
 	/*!< \brief returns filename for magnetic flux tube expansion factor image														*/
 
+string getFilename_magMappingExpansionMax(	const PFSSsolutionInfo &info, hcFloat height,
+											bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
+	/*!< \brief returns filename for magnetic flux tube expansion factor image (max value between phot and ss)						*/
+
+string getFilename_magMappingExpansionDiff(	const PFSSsolutionInfo &info, hcFloat height,
+											bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
+	/*!< \brief returns filename for difference image betwween expansion factor and max expansion factor							*/
+
 string getFilename_magMappingMagfield_r(const PFSSsolutionInfo &info, hcFloat height,
 										bool sinLatFormat, bool compCoords, uint resTheta, uint resPhi);
 	/*!< \brief returns filename for magnetic field image, radial component															*/
@@ -122,7 +130,7 @@ string getFilename_AIA(const string &instDir, euvID id, uint crNum);
 originID getOriginIDfromPhotFilename(const string &filename);
 	/*!< \brief identify magnetometer from synoptic photospheric magnetogram filename												*/
 
-bool getParamFromFN_pfssSolutionInfo(		string filename, PFSSsolutionInfo &info);
+bool getParamFromFN_pfssSolutionInfo(const	string &filename, PFSSsolutionInfo &info);
 	/*!< \brief extracts pfssSolutionInfo parameters from filename																	*/
 
 bool getParamFromFN_magMapping(		const string &filename, PFSSsolutionInfo &info,

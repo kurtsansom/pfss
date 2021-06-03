@@ -224,7 +224,7 @@ bool SynPhotMagfield::load(const string &filename)
 	else if(id == ORIGIN_VER_DAILY)		retval = openVerDAILY(		filename);
 	else if(id == ORIGIN_SDOHMI)		retval = openSDOHMI(		filename);
 	else if(id == ORIGIN_OWN)			retval = openOwnFormat(		filename);
-	else	cerr << __FILE__ << ":" << __LINE__ << ": File could not be opened. Unknown instrument. Filename: '" << filename << "'\n\n";
+	else	printErrMess(__FILE__, __LINE__, "file '" + filename + "' cannot not be opened, unknown instrument");
 
 	return retval;
 }
@@ -245,7 +245,7 @@ bool SynPhotMagfield::openOwnFormat(const string &filename)
 	}
 	else
 	{
-		cerr << __FILE__ << ":" << __LINE__ << ": Filename could not be matched!\n";
+		printErrMess(__FILE__, __LINE__, "filename '" + filename + "' cannot not be matched, RE: " + re0.str());
 		return false;
 	}
 
@@ -253,7 +253,7 @@ bool SynPhotMagfield::openOwnFormat(const string &filename)
 
 	if(!hcImageFITS::load(filename))
 	{
-		cerr << __FILE__ << ":" << __LINE__ << ": File\n\t'" << filename << "'\n\tcannot not be opened\n";
+		printErrMess(__FILE__, __LINE__, "file '" + filename + "'cannot not be opened");
 		retval = false;
 	}
 
@@ -271,15 +271,15 @@ bool SynPhotMagfield::openOwnFormat(const string &filename)
 	else if(!strcmp(instrument.c_str(), "OWN"))			id = ORIGIN_OWN;
 	else
 	{
-		cerr << __FILE__ << ":" << __LINE__ << " Instrument name '" << instrument.c_str() << "' cannot not be identified\n";
+		printErrMess(__FILE__, __LINE__, "instrument name '" + instrument + "' cannot not be identified");
 		return false;
 	}
 
 	hcFloat maxSinLat,minSinLat;
 
-	if (!readKeyFloat(string("MAXSINLA"), maxSinLat)|| !readKeyFloat(string("MINSINLA"), minSinLat))
+	if (!readKeyFloat(string("MAXSINLA"), maxSinLat))
 	{
-		cerr << __FILE__ << ":" << __LINE__ << ": MAXSINLAT or MINSINLAT key not found in file.\n";
+		printErrMess(__FILE__, __LINE__, "MAXSINLAT key not found in file");
 		return false;
 	}
 
@@ -929,21 +929,6 @@ bool SynPhotMagfield::save(const string &filename)
 	writeKeyString("BUNIT", "unit of pixel values", "GAUSS");
 
 	return true;
-}
-
-void SynPhotMagfield::addHomWhiteNoise(float sigma, uint seed)
-{
-	hcImageFloat::addHomWhiteNoise(sigma, seed);
-}
-
-void SynPhotMagfield::addPixelNoise(float fraction, uint seed)
-{
-	hcImageFloat::addPixelNoise(fraction, seed);
-}
-
-void SynPhotMagfield::addSignedFractionNoise(float fraction, uint seed)
-{
-	hcImageFloat::addSignedFractionNoise(fraction, seed);
 }
 
 void SynPhotMagfield::dump() const

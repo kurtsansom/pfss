@@ -281,16 +281,6 @@ bool hcImageFITS::writeKeyFloat(const string &keyname, const string &comment, hc
 		return false;
 	}
 
-	/*	CFITSIO seems to do some keyword padding which the SAO-Viewer is not capable of understanding, therefore the cards are generated manually below
-	pthread_mutex_lock(&hcImageFITS::mutexFits);
-	if (fits_update_key(filePtr, TFLOAT, keyname.data(), &val, comment.data(), &status))
-	{
-		cerr << __FILE__ << ":" << __LINE__ << ": key " << keyname << "could not be written.\n";
-		printerror(status);
-		result = false;
-	}
-	pthread_mutex_unlock(&hcImageFITS::mutexFits);/*/
-
 	stringstream payload;
 	payload << std::setw(7) << std::left << keyname << " = " << value << "\0";
 	if(comment.length() > 0) payload << " / " << comment << "\0";
@@ -477,7 +467,6 @@ percentileDataStruct hcImageFITS::getPercentiles() const
 		for(uint y=0; y<height; ++y)
 		{
 			if(fabs(content(x,y) - 1E-20)>1E-6 && content(x,y) > 0.0)
-			//if(!isnan(img(x,y)))
 				++count;
 		}
 
@@ -487,7 +476,6 @@ percentileDataStruct hcImageFITS::getPercentiles() const
 	for(uint x=0; x<width; ++x)
 		for(uint y=0; y<height; ++y)
 			if(fabs(content(x,y) - 1E-20)>1E-6 && content(x,y) > 0.0)
-			//if(!isnan(img(x,y)))
 				arr[count++] = content(x,y);
 
 	if(count == 0)
@@ -616,6 +604,7 @@ hcFloat hcImageFITS::crosscor(const hcImageFITS &other, uint i, uint j)
 	return correl;
 }
 
+/*
 void hcImageFITS::fft(hcImageFITS &real, hcImageFITS &imag)
 {
 	double *in 			= new double[width*height];
@@ -638,8 +627,6 @@ void hcImageFITS::fft(hcImageFITS &real, hcImageFITS &imag)
 	for(uint x=0; x<width; ++x)
 		for(uint y=0; y<height; ++y)
 		{
-			//real(x,y) = out[y*width+x][0];
-			//imag(x,y) = out[y*width+x][1];
 			real(x,y) = out[y + height*x][0];
 			imag(x,y) = out[y + height*x][1];
 		}
@@ -683,7 +670,7 @@ bool hcImageFITS::fft_inv(hcImageFITS &real, hcImageFITS &imag)
 	delete [] out;
 
 	return true;
-}
+}//*/
 
 void hcImageFITS::initStaticMembers()
 {

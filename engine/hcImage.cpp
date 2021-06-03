@@ -1052,6 +1052,7 @@ bool hcImageFloat::loadFromArray(float *array, uint width, uint height)
     return true;
 }
 
+#ifdef GUI
 void hcImageFloat::addHomWhiteNoise(float sigma, uint seed)
 {
 	gsl_rng *rng = gsl_rng_alloc(gsl_rng_taus2);
@@ -1098,6 +1099,7 @@ void hcImageFloat::addSignedFractionNoise(float fraction, uint seed)
 
 	gsl_rng_free(rng);
 }
+#endif
 
 hcFloat hcImageFloat::meanSquaredDiff(hcImage &other)
 {

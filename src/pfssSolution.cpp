@@ -85,14 +85,12 @@ string PFSSsolution::getFilenamePhotMagfield()
 	return dirData + "/" + to_string(info.CRnum) + "/" + getFilename_photMagfield(info);
 }
 
-bool PFSSsolution::loadPhotBoundary(const string &filename, uint seed, uint scaleMethod)
+bool PFSSsolution::loadPhotBoundary(const string &filename, uint scaleMethod)
 {
     if(!checkFileEx(filename, "PFSSsolution::loadPhotBoundary"))
     	return false;
     if(!photBoundary.load(filename))
     	return false;
-
-    if(seed!=0)	photBoundary.addSignedFractionNoise(0.1, seed); 	// testing noise impact on computation
 
     if(!photBoundary.remeshImage(info.numPhi, info.numTheta, scaleMethod))
 		return false;
@@ -215,9 +213,6 @@ bool PFSSsolution::load(const string &cfgFN)
     info.computationTime 	= computationTime;
 
     solver.init(info.sinLatFormat, info.maxSinLat, info.rss, info.numR, info.ell);
-    //SphericalGrid &gr 		= *solver.grid;
-    //EllipticalGrid &egr 	= *(dynamic_cast<EllipticalGrid*>(&gr));
-    //bool isEll				= gr.isElliptical();
     boundaryFilename 		= getFilenamePhotMagfield();
     gridFilename			= getFilenameGrid();
 
@@ -296,7 +291,7 @@ bool PFSSsolution::computeKielGrid(const string &filename, const string &optiona
 	info.init(	synInf, sizeof(hcFloat), MODEL_PFSS, ell==1.0?METH_NUMERIC:METH_ELLIPTICAL, GROUP_KIEL,
 				r_ss, ell, 0, compResR, numT, numP);
 
-	if(!loadPhotBoundary(filename, 0, scaleMethod))
+	if(!loadPhotBoundary(filename, scaleMethod))
 		return false;
 
 	string gridFilename = getFilenameGrid();
@@ -411,9 +406,16 @@ bool PFSSsolution::mapHeightLevel(hcFloat height, hcFloat maxSinLat, uint numThe
 	}
 
 	map.exportImagePolarity();
-	map.exportExpansionFactorImage();
+	map.exportImageExpansionFactor();
+	map.exportImageExpansionFactorMax();
 	map.exportImageMagfield();
 	//map.exportFootpointImage();
+
+	hcImageFITS imgExp, imgExpMax, diff;
+	imgExp.load(getFilename_magMappingExpansion(map.info, map.getHeight(), map.sinLatFormat, map.compCoords, map.numTheta, map.numPhi));
+	imgExpMax.load(getFilename_magMappingExpansionMax(map.info, map.getHeight(), map.sinLatFormat, map.compCoords, map.numTheta, map.numPhi));
+	diff.diffImage(imgExpMax, imgExp);
+	diff.save(getFilename_magMappingExpansionDiff(map.info, map.getHeight(), map.sinLatFormat, map.compCoords, map.numTheta, map.numPhi));
     return true;
 }
 
@@ -1023,13 +1025,20 @@ bool PFSSsolution::computeAndMapKielGrid(
  * 	@param 	height			height to be mapped or 0.0 for source surface and photosphere
  */
 //bool PFSSsolution::loadAndMapKielGrid(const string &filename, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights, hcFloat height)
-bool PFSSsolution::loadAndMapKielGrid(const string &filename, uint mapResTheta, uint mapResPhi, bool mapIntermediateHeights)
+bool PFSSsolution::loadAndMapKielGrid(const string &filename, uint mapResTheta, uint mapResPhi, hcFloat height)
 {
 	bool retval = true;
 	printStdOutMess(__FILE__, __LINE__, "load and map PFSS solution '" + filename + "'");
 	retval &= load(filename);
-	retval &= mapHeightLevel(info.rss, 	14.5/15.0, mapResTheta, mapResPhi, true, true);
-	retval &= mapHeightLevel(r_sol, 	14.5/15.0, mapResTheta, mapResPhi, true, true);
+	if (retval)
+	{
+		if(height == 0.0)
+		{
+			retval &= mapHeightLevel(info.rss, 	14.5/15.0, mapResTheta, mapResPhi, true, true);
+			retval &= mapHeightLevel(r_sol, 	14.5/15.0, mapResTheta, mapResPhi, true, true);
+		}
+		else retval&= mapHeightLevel(height, 	14.5/15.0, mapResTheta, mapResPhi, true, true);
+	}
 	return retval;
 }
 

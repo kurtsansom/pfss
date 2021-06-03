@@ -108,6 +108,15 @@ public:
 #ifdef GUI
     virtual bool load(const string &filename);
         /*!< \brief loads an image from filename                                                                */
+
+    virtual void addHomWhiteNoise(float sigma, uint seed);
+    	/*!< \brief adds white noise by adding gaussian distributed value														*/
+
+    virtual void addPixelNoise(float fraction, uint seed);
+    	/*!< \brief adds noise to each pixel seperately by adding normal distributed values with sigma = fraction * pixelValue	*/
+
+    virtual void addSignedFractionNoise(float fraction, uint seed);
+    	/*!< \brief adds +/- fraction * pixel value to each pixel																*/
 #endif
 
     uint numNotBlackPixels() const;
@@ -178,15 +187,6 @@ public:
 
     bool loadFromArray(float *array, uint width, uint height);
         /*!< \brief loads image data from array                                                                 				*/
-
-    virtual void addHomWhiteNoise(float sigma, uint seed);
-    	/*!< \brief adds white noise by adding gaussian distributed value														*/
-
-    virtual void addPixelNoise(float fraction, uint seed);
-    	/*!< \brief adds noise to each pixel seperately by adding normal distributed values with sigma = fraction * pixelValue	*/
-
-    virtual void addSignedFractionNoise(float fraction, uint seed);
-    	/*!< \brief adds +/- fraction * pixel value to each pixel																*/
 
     hcFloat meanSquaredDiff(hcImage &other);
 
