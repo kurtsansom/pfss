@@ -1,8 +1,8 @@
 #include "engine/hcImage.h"
 
-#include "gsl/gsl_rng.h"
-#include "gsl/gsl_randist.h"
-#include "gsl/gsl_cdf.h"
+//#include "gsl/gsl_rng.h"
+//#include "gsl/gsl_randist.h"
+//#include "gsl/gsl_cdf.h"
 
 /*! @param numPixels 			number of pixels in meridional direction
  *  @param northPixelBorder		border of north-most pixel (in sin(latitude)), 1.0 for pixels stretching all the way to the north pole

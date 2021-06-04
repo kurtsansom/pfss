@@ -1,6 +1,6 @@
 #include "engine/hcImageFITS.h"
 
-#include "fftw3.h"
+//#include "fftw3.h"
 
 void printerror(int status)
 {

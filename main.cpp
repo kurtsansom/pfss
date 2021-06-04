@@ -215,7 +215,7 @@ bool parse(int argc, char **argv)
 
 	if(method != METH_NUMERIC && ellipticity != 1.0)
 	{
-		printErrMess(__FILE__, __LINE__, "--ell " + string(ell) + "not supported with computation method " + getStringFromMethodID(method));
+		printErrMess(__FILE__, __LINE__, "--ell " + to_string(ellipticity) + "not supported with computation method " + getStringFromMethodID(method));
 		abort = true;
 	}
 
