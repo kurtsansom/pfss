@@ -8,7 +8,7 @@
 #include "src/imageStatistics.h"
 
 #include "fitsio.h"
-#include "gsl/gsl_fft_real.h"
+//#include "gsl/gsl_fft_real.h"
 
 typedef unsigned int uint;
 
