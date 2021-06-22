@@ -14,7 +14,7 @@ using namespace filesystem;
 extern string dirData;
 
 /*! @param	inDir					direcory to be worked upon
- * 	@param	r_ss					heliocenric position of source surface
+ * 	@param	r_ss					heliocenric position of source surface (m)
  *	@param	resCompR				radial resolution of computational grid
  *	@param	order					maximum principal order of SHC approach
  */
@@ -57,7 +57,7 @@ bool PFSSsolution::batchKielSHC(const string &inDir, hcFloat r_ss, uint resCompR
  *  computational work, for the GUI version please see HelioMagfield::batchRotationComputing
  *
  *	@param	inDir					direcory to be worked upon
- *	@param	r_ss					heliocenric position of source surface
+ *	@param	r_ss					heliocenric position of source surface (m)
  *	@param	resCompR				radial resolution of computational grid
  *	@param	ellipticity				ellipticity of source surface (default: 1.0 - spherical)
  *

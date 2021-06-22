@@ -5,7 +5,7 @@ MAKEFILE      = Makefile
 VERSION_MAJOR	= 0						# Major Version Number
 VERSION_MINOR	= 2						# Minor Version Number
 ####### Compiler, tools and options
-CUDA			= 1
+CUDA			= 0
 DEFINES       	=  -D_DEBUG
 DEFINES			+= -DhcFloat=float		# floating point precision to be used
 DEFINES			+= -DNUMTHREADS=12		# number of threads to be used in multi-threaded computations

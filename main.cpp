@@ -115,7 +115,6 @@ bool parse(int argc, char **argv)
 				else if(command == "help"){			help		 	= true;}
 				else if(command == "rescompr"){		resCompR 		= atoi(optarg);}
 				else if(command == "resmaptheta"){	resMapTheta 	= atoi(optarg);}
-				else if(command == "rss"){			rss				= strtof(optarg, NULL);}
 				else if(command == "resmapphi"){	resMapPhi 		= atoi(optarg);}
 				else if(command == "order"){		order 			= atoi(optarg);}
 				else if(command == "ell")
@@ -144,6 +143,7 @@ bool parse(int argc, char **argv)
 
 				else if(command == "rss")
 				{
+					cout << "set fucking rss\n";fflush(stdout);
 					hcFloat val = strtof(optarg, NULL);
 					if(val <= 1.0)
 					{
@@ -152,6 +152,8 @@ bool parse(int argc, char **argv)
 						//return false;
 					}
 					else rss = val * r_sol;
+
+					cout << "set rss: " << rss << "\n";
 				}
 				else if(command == "height")
 				{
@@ -215,7 +217,7 @@ bool parse(int argc, char **argv)
 
 	if(method != METH_NUMERIC && ellipticity != 1.0)
 	{
-		printErrMess(__FILE__, __LINE__, "--ell " + string(ell) + "not supported with computation method " + getStringFromMethodID(method));
+		printErrMess(__FILE__, __LINE__, "--ell " + toStr(ellipticity) + "not supported with computation method " + getStringFromMethodID(method));
 		abort = true;
 	}
 
@@ -249,6 +251,7 @@ bool parse(int argc, char **argv)
 		return false;
 	}
 
+	cout << "rss: " << rss << "\n";
 	// perform operations requested by command line
 	if(help || argc==1)	printHelp();
 	PFSSsolution sol;
@@ -281,8 +284,7 @@ int main(int argc, char **argv)
 /*! \mainpage
  *
  *  \brief This PFSS computation suite computes the PFSS solution using photospheric magnetograms from MDI, HMI, GONG, and WSO. It can also create
- *  image-like maps of the magnetic configuration and the expansion factor at arbitrary heights between photsphere and source surface.
- *
+ *  maps of the magnetic configuration and the expansion factor at arbitrary heights between photsphere and source surface.
  *  Commands are given via command line arguments to the PFSS suite. For an example how to use the command-line interface see below.
  *  Several solar observatories are supported and automatically recognized for supplying the photospheric magnetogram.
  *
@@ -303,7 +305,7 @@ int main(int argc, char **argv)
  *
  *  # Optimizations (optional)
  *
- *  Several optimizationbs can be adjusted in the Makefile. If a CUDA-capable device is present, setting the variable CUDA to '1' will build the program to employ the CUDA device, which might decrease computation time substantially.
+ *  Several optimizations can be adjusted in the Makefile. If a CUDA-capable device is present, setting the variable CUDA to '1' will build the program to employ the CUDA device, which might decrease computation time substantially.
  *  For this optimization the CUDA runtime environment needs to be installed (please consult NVIDIA's webpage for instructions).
  *
  *  The variable NUMTHREADS limits the number of threads to be utilized for multithreaded execution of the program. For optimal performance it should be the same number as CPU cores in the system.
@@ -354,7 +356,7 @@ int main(int argc, char **argv)
  *
  *	\-\- **map** _filename_
  *
- *	Computes the magnetic configuration at specified height [default: photosphere and source surface]. _filename_ points to the configuration file of the computed solution (ending in \*config.cfg). For additional arguments see below.
+ *	Computes the magnetic configuration at specified height [default: photosphere and source surface]. _filename_ points to the configuration file of the computed solution (ending in \*config.cfg). For additional options see below.
  *
  *	\-\- **batchcompute** _directory_
  *
@@ -369,8 +371,8 @@ int main(int argc, char **argv)
  *	\-\- **rss** _value_		source surface height (multiples of solar radius), _value_ is floating point\n
  *	\-\- **ell** _value_		ellipticity of source surface, _value_ is floating point, [default: 1.0 (spheric)]\n
  *	\-\- **resCompR** _value_	computational grid resolution in radial direction, other directions are determined automatically,
- *								_value_ is unsigned integer
- *	\-\- **method** _value_		solution method to be used for PFSS computation. _value_ is either 'shc' for the classic spherical harmonic coefficient approach or 'numeric' for the finite difference solver.
+ *								_value_ is unsigned integer\n
+ *	\-\- **method** _value_		solution method to be used for PFSS computation. _value_ is either 'shc' for the classic spherical harmonic coefficient approach or 'numeric' for the finite difference solver\n
  *	\-\- **order** _value_		maximum principal order to be used with the SHC approach, _value_ is unsigned integer
  *
  *	**Additional options for map**
@@ -397,7 +399,7 @@ int main(int argc, char **argv)
  *
  *		cd PFSS/bin
  *
- *  To perform a PFSS model evaluation with default parameters for the synoptic photospheric magnetogram found at PFSS/data/input/synop_Ml_0.2066.fits:
+ *  To perform a PFSS model evaluation with default parameters for the synoptic photospheric magnetogram found at PFSS/data/input/synop_Ml_0.2066.fits (not included in the repository, you need to download the magnetogram and place it at that location):
  *
  *  	./pfss --compute ../data/input/synop_Ml_0.2066.fits
  *
@@ -407,7 +409,8 @@ int main(int argc, char **argv)
  *
  *	To generate a magnetic mappings of the same solution at height r=2.4 r_sol with a resolution of 130 x 200 pixels:
  *
- *		./pfss --map ../data/2066/2066_MDI_Kiel_PFSS2.50_GridSph_35x87x175_config.cfg --height 2.4 --resMapTheta 130 --resMapPhi 200
+ *		./pfss --map ../data/2066/2066_MDI_Kiel_PFSS2.50_GridSph_35x87x175_config.cfg --height 2.4 \
+ *		--resMapTheta 130 --resMapPhi 200
  *
  *	To evaluate the PFSS model for all photospheric magnetic maps found in directory PFSS/data/batchinput with a radial grid resolution of 40 grid points and a source surface radius of r=3.1 r_sol:
  *
