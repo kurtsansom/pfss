@@ -124,7 +124,6 @@ bool parse(int argc, char **argv)
 					{
 						printErrMess(__FILE__, __LINE__, "ellipticity must be >= 0.0, you supplied --ell " + string(optarg));
 						abort = true;
-						//return false;
 					}
 					else ellipticity = val;
 				}
@@ -134,7 +133,6 @@ bool parse(int argc, char **argv)
 					{
 						printErrMess(__FILE__, __LINE__, "you supplied --method " + string(optarg) + ", but only 'numeric' and 'shc' are supported");
 						abort = true;
-						//return false;
 					}
 
 					if(!strcmp(optarg, "shc"))			method = METH_SHC;
@@ -143,13 +141,11 @@ bool parse(int argc, char **argv)
 
 				else if(command == "rss")
 				{
-					cout << "set fucking rss\n";fflush(stdout);
 					hcFloat val = strtof(optarg, NULL);
 					if(val <= 1.0)
 					{
 						printErrMess(__FILE__, __LINE__, "source surface radius must be > 1.0, you supplied --rss " + string(optarg));
 						abort = true;
-						//return false;
 					}
 					else rss = val * r_sol;
 
@@ -162,7 +158,6 @@ bool parse(int argc, char **argv)
 					{
 						printErrMess(__FILE__, __LINE__, "you supplied --height " + string(optarg) + ", but it must hold 1.0 <= height <= r_ss");
 						abort = true;
-						//return false;
 					}
 					else height = val * r_sol;
 				}
@@ -170,7 +165,6 @@ bool parse(int argc, char **argv)
 				{
 					printStdOutMess(__FILE__, __LINE__, "unknown option " + string(long_options[option_index].name) + " with arg " + (optarg ? string(optarg) : "none"));
 					abort = true;
-					//return false;
 				}
 				break;
 
@@ -212,16 +206,11 @@ bool parse(int argc, char **argv)
 		printErrMess(__FILE__, __LINE__, "non-option ARGV-elements: ");
 		while (optind < argc) printErrMess(__FILE__, __LINE__,  string(argv[optind++]) + " ");
 		abort = true;
-		//return false;
 	}
 
 	if(method != METH_NUMERIC && ellipticity != 1.0)
 	{
-<<<<<<< HEAD
 		printErrMess(__FILE__, __LINE__, "--ell " + toStr(ellipticity) + "not supported with computation method " + getStringFromMethodID(method));
-=======
-		printErrMess(__FILE__, __LINE__, "--ell " + to_string(ellipticity) + "not supported with computation method " + getStringFromMethodID(method));
->>>>>>> 28e2f5d4002c37e56ffd145961d1ce4c99b2f8bd
 		abort = true;
 	}
 
@@ -255,7 +244,6 @@ bool parse(int argc, char **argv)
 		return false;
 	}
 
-	cout << "rss: " << rss << "\n";
 	// perform operations requested by command line
 	if(help || argc==1)	printHelp();
 	PFSSsolution sol;
@@ -302,7 +290,7 @@ int main(int argc, char **argv)
  *
  *  and then build the documentation:
  *
- *		cd PFSS
+ *		cd pfss
  *		make documentation
  *
  *  The documentation will then be produced both as HTML and PDF in the directory PFSS/doc.
@@ -325,20 +313,20 @@ int main(int argc, char **argv)
  *
  * 	If successful the PFSS computation suite can be built via
  *
- *		cd PFSS
+ *		cd pfss
  *		make
  *
- *	The binary will be placed in PFSS/bin.
+ *	The binary will be placed in pfss/bin.
  *
  *  # Running the program
  *
- *  If you used make to build the PFSS computation suite, the binary file will be stored in PFSS/bin/.
+ *  If you used make to build the PFSS computation suite, the binary file will be stored in pfss/bin/.
  *
  *  ## Configuration and model output files
  *
  *  Upon execution the binary reads a configuration file, which specifies the data and configuration directories.
- *  The configuration directory contains information about start and stop times of Carrington rotations. The data directory contains all the output from the PFSS computation suite. If you run the binary from the PFSS/bin/ directory without
- *  specifying a configuration file, the default file PFSS/config/config will be used. The default data directoy is then PFSS/data. Please consult this default config file to set your own data directory at a location with enough disk space
+ *  The configuration directory contains information about start and stop times of Carrington rotations. The data directory contains all the output from the PFSS computation suite. If you run the binary from the pfss/bin/ directory without
+ *  specifying a configuration file, the default file pfss/config/config will be used. The default data directoy is then pfss/data. Please consult this default config file to set your own data directory at a location with enough disk space
  *  if the default location is not suitable. Absolute paths in your config file allows the binary to be executed from arbitrary shell locations. Manipulation of the configuration file is only necessary if you have special needs for the location of
  *  the computed solutions.
  *
@@ -399,11 +387,11 @@ int main(int argc, char **argv)
  *
  *	# Example use cases
  *
- *	All examples are executed from the PFSS/bin-directory, so change there:
+ *	All examples are executed from the pfss/bin-directory, so change there:
  *
- *		cd PFSS/bin
+ *		cd pfss/bin
  *
- *  To perform a PFSS model evaluation with default parameters for the synoptic photospheric magnetogram found at PFSS/data/input/synop_Ml_0.2066.fits (not included in the repository, you need to download the magnetogram and place it at that location):
+ *  To perform a PFSS model evaluation with default parameters for the synoptic photospheric magnetogram found at pfss/data/input/synop_Ml_0.2066.fits (not included in the repository, you need to download the magnetogram and place it at that location):
  *
  *  	./pfss --compute ../data/input/synop_Ml_0.2066.fits
  *
@@ -416,7 +404,7 @@ int main(int argc, char **argv)
  *		./pfss --map ../data/2066/2066_MDI_Kiel_PFSS2.50_GridSph_35x87x175_config.cfg --height 2.4 \
  *		--resMapTheta 130 --resMapPhi 200
  *
- *	To evaluate the PFSS model for all photospheric magnetic maps found in directory PFSS/data/batchinput with a radial grid resolution of 40 grid points and a source surface radius of r=3.1 r_sol:
+ *	To evaluate the PFSS model for all photospheric magnetic maps found in directory pfss/data/batchinput with a radial grid resolution of 40 grid points and a source surface radius of r=3.1 r_sol:
  *
  *		./pfss --batchcompute ../data/input/ --resCompR 40 --rss 3.1
  */
